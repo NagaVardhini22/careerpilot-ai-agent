@@ -1,328 +1,249 @@
-# 🚀 CAREERPILOT — AI CAREER AGENT
-> **Autonomous AI Career Agent for Job Match Analysis, Skill Gap Remediation, and Tailored Interview Preparation**
+# CareerPilot — AI Career Agent
 
-[![Node.js Version](https://img.shields.io/badge/Node.js-v18%2B-green.svg)](https://nodejs.org/)
-[![Database](https://img.shields.io/badge/Database-MySQL%208.0-blue.svg)](https://www.mysql.com/)
-[![Architecture](https://img.shields.io/badge/Architecture-Clean%20Layered%20%2F%20Agentic-purple.svg)]()
-[![Frontend](https://img.shields.io/badge/Frontend-HTML5%20%7C%20CSS3%20%7C%20Vanilla%20JS-orange.svg)]()
-[![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
+> **An autonomous AI career agent that evaluates candidate qualifications against real job descriptions, calculates skill compatibility scores, identifies skill gaps, and generates targeted interview preparation strategies using controlled backend tool execution.**
 
 ---
 
-## 📌 1. Project Overview
+### 🌐 Live Demo & Repository
 
-**CareerPilot** is an autonomous AI career agent designed to help job seekers evaluate job opportunities, calculate algorithmic skill match scores, identify critical skill gaps, and generate role-specific interview preparation strategies.
-
-Unlike standard conversational chatbots that simply echo text back and forth, **CareerPilot implements a real multi-step agent orchestration loop using tool/function calling**. The agent receives a natural-language goal from the user, dynamically inspects registered backend tools, executes parameterized database queries and match algorithms against a normalized MySQL database, and iterates until it produces a verified, data-backed answer.
-
----
-
-## 💡 2. Problem Statement & Why This Project Exists
-
-In modern technical hiring, job descriptions are often overloaded with disparate skill requirements, creating anxiety and ambiguity for candidates:
-1. **Subjective Self-Assessment**: Candidates struggle to quantify how well their skills match specific job listings.
-2. **Generic Interview Preparation**: Standard practice questions fail to account for the specific intersection between the candidate's actual background and the target company's job requirements.
-3. **Superficial "Chatbot" Solutions**: Typical AI demos send a candidate's resume straight to an LLM prompt without ground-truth database validation, leading to hallucinations, ungrounded match percentages, and zero persistence.
-
-**CareerPilot solves this** by acting as an autonomous orchestrator. The AI agent never touches the database directly; instead, it utilizes **controlled backend tools** to inspect real candidate skills, analyze saved jobs, compute deterministic match percentages, persist evaluations in MySQL, and craft grounded interview talking points.
+- **Live Application:** [https://careerpilot-ai-agent-production.up.railway.app/](https://careerpilot-ai-agent-production.up.railway.app/)
+- **GitHub Repository:** [https://github.com/NagaVardhini22/careerpilot-ai-agent](https://github.com/NagaVardhini22/careerpilot-ai-agent)
 
 ---
 
-## ✨ 3. Core Features
+## Overview
 
-- **Autonomous Agent Studio**: Conversational interface supporting complex prompts such as:
-  > *"Analyze my saved jobs and tell me which job is the best match for my skills. Then prepare interview questions for the best matching job."*
-- **Live Tool Execution Stepper**: Visual real-time timeline (`✓ Retrieved candidate profile`, `✓ Retrieved 6 saved jobs`, `✓ Calculated candidate-job match`, `✓ Generated interview questions`, `✓ Saved analysis to database`).
-- **Normalized MySQL Persistence**: Full relational schema storing users, candidate profiles, master skills taxonomy, candidate proficiencies, jobs, applications, job analyses, and fine-grained agent execution audit logs.
-- **8 Controlled Backend Tools**: Modular functions for profile retrieval, job querying, requirement parsing, match score calculation, question generation, and database persistence.
-- **Fresh Onboarding Experience**: Starts completely empty by default. Users create their own profile, skills, and job opportunities directly through the UI.
-- **One-Click Demo Seeding & Reset**: Provides instant `Load Demo Data` and `Reset Clean State` options for technical interviews.
-- **Zero Framework Bloat**: Built purely with HTML5, CSS3, and Vanilla JavaScript on the frontend, and Node.js + Express.js on the backend.
-- **Dual AI Mode**: Works out of the box with an intelligent **Dynamic Mock Agent Planner** (offline, zero paid API keys needed) or real **OpenAI / Google Gemini API** integrations via environment variables.
+**CareerPilot** is an AI-powered career and job analysis application. Instead of acting as an ungrounded conversational chatbot that guesses answers from prompt text, CareerPilot implements a **controlled, multi-step agent orchestration loop**. 
+
+When a user submits a natural-language career request—such as asking which saved job is their best match and requesting interview questions—the backend agent inspects a registry of controlled tools, autonomously plans and executes discrete steps, reads and writes data to a normalized MySQL database, and returns a verified, data-backed synthesis to the user.
+
+Key design principles of CareerPilot:
+1. **Deterministic Data Operations**: The LLM never writes raw SQL or directly accesses the database. All reads, writes, and match calculations are executed through strictly validated backend tool functions.
+2. **Normalized Relational Persistence**: Profiles, skill taxonomies, jobs, applications, compatibility analyses, and execution audit logs are stored in a 3NF relational schema in MySQL.
+3. **Auditability & Observability**: Every agent run and individual tool call (including arguments, results, status, and duration in milliseconds) is persisted in MySQL and visually presented in the application timeline.
+4. **Clean Onboarding State**: Deployed instances start completely empty. Users onboard themselves by creating their candidate profile and saving target roles.
 
 ---
 
-## 🛠️ 4. Technology Stack
+## Key Features
 
-| Layer | Technologies Used | Rationale |
+- **Candidate Profile Management**: Create and maintain candidate background, headline, education, years of experience, and professional summary.
+- **Skills Management**: Select skills from a standardized technical taxonomy and assign proficiency levels (Beginner, Intermediate, Advanced, Expert) with years of experience.
+- **Job Opportunity Tracking**: Add, view, search, and delete job listings with structured metadata (title, company, location, work mode, salary range, and required skills).
+- **Job Compatibility Analysis**: Calculate algorithmic match percentages, detect satisfied requirements, flag critical skill gaps, and generate strategic recommendations.
+- **AI Agent Studio**: An interactive interface where users issue high-level career goals in natural language and observe the agent's multi-step tool execution through an activity timeline.
+- **Controlled Tool / Function Calling**: Standards-compliant tool calling with JSON Schema validation and server-side argument enforcement.
+- **Interview Question Generation**: Automatically construct targeted technical questions, STAR-method behavioral scenarios, and strategic candidate talking points tailored to the specific intersection of candidate background and role requirements.
+- **Job Analysis Persistence**: Persist evaluation outcomes directly to MySQL (`job_analyses`) for historical tracking.
+- **Agent Audit Logging**: Detailed relational execution logs for each session (`agent_runs`) and granular tool execution records (`agent_tool_calls`).
+- **Clean Onboarding State**: Starts with an empty candidate profile and zero jobs, providing an onboarding flow for new users.
+- **Manual Demo Seeding**: Optional one-click demo data loading (`npm run db:seed` or UI button) for local development and technical interview demonstrations.
+- **Clean State Reset**: One-click reset functionality (`npm run db:reset` or UI button) to return the database to an empty state instantly.
+- **Interactive Dashboard**: Metrics overview displaying total saved jobs, analyzed jobs, average match score, and recent agent runs.
+- **Live Cloud Deployment**: Fully deployed and operational on Railway with managed MySQL and secure HTTPS endpoints.
+
+---
+
+## AI Agent Architecture
+
+CareerPilot isolates the reasoning model from direct data storage through a strict layered architecture:
+
+```
+Browser (Vanilla JavaScript)
+    │
+    ▼
+Express REST API Router
+    │
+    ▼
+Agent Orchestrator (backend/services/agentService.js)
+    │
+    ├──▶ LLM / Agent Planner (OpenAI / Gemini / Deterministic Mock)
+    │        │
+    │        ▼ (Requests Tool Execution via JSON Schema)
+    │
+    ├──▶ Tool Registry (backend/tools/index.js)
+    │        │
+    │        ▼ (Validates & Dispatches)
+    │
+    ├──▶ Controlled Backend Tools (8 Discrete Modules)
+    │        │
+    │        ▼ (Parameterized Queries & Algorithms)
+    │
+    ├──▶ MySQL Database (Normalized 3NF Relational Tables)
+    │        │
+    │        ▼ (Returns Structured Data)
+    │
+    ├──▶ Tool Results appended to Context & Logged to MySQL
+    │        │
+    │        ▼ (Next Reasoning Step or Final Synthesis)
+    │
+Final Structured Markdown Response
+    │
+    ▼
+Browser (Rendered Response + Step-by-Step Activity Timeline)
+```
+
+### Why the LLM Does Not Directly Access MySQL
+
+Allowing an LLM to generate and execute raw SQL statements introduces major architectural risks:
+- **Security Hazards**: Susceptibility to prompt injections, unintentional table drops, or permission escalations.
+- **Data Integrity Failures**: Schema drift, foreign key constraint violations, and invalid JSON formatting.
+- **Hallucinated Queries**: Models frequently generate incorrect column names, non-existent tables, or invalid joins.
+- **Lack of Business Rule Enforcement**: Business logic (such as weighted match score formulas and proficiency scales) must be enforced by application code, not probabilistic model guesses.
+
+CareerPilot solves this by utilizing **controlled backend tools**. The LLM only indicates *which* tool to invoke and supplies structured parameters. The backend validates parameters, executes parameterized queries via `mysql2/promise`, applies business rules, records execution metrics, and passes clean JSON results back to the model context.
+
+---
+
+## Agent Tooling
+
+The agent tool catalog contains **8 controlled tools** defined in `backend/tools/`:
+
+| Tool Name | Implementation File | Description |
 | :--- | :--- | :--- |
-| **Frontend** | HTML5, CSS3, Vanilla JavaScript (ES6+) | Demonstrates mastery of core web standards, DOM APIs, and CSS Grid/Flexbox without framework abstractions. |
-| **Backend** | Node.js, Express.js | Asynchronous, non-blocking I/O event loop ideal for orchestrating multi-step LLM calls and database queries. |
-| **Database** | MySQL 8.0, `mysql2/promise` | Normalized relational database with ACID guarantees, foreign keys, and indexes. |
-| **AI / Agent** | Function Calling / Tool Calling (OpenAI / Gemini / Deterministic Planner) | Standards-compliant tool calling with JSON Schema validation and iterative orchestration. |
-| **Security** | Parameterized SQL Queries, Dotenv | Guaranteed protection against SQL injection; zero secret leaks to client. |
+| `getCandidateProfile` | `backend/tools/getCandidateProfile.js` | Retrieves the candidate profile details, summary, education, experience, and indexed skills with proficiency levels. |
+| `getSavedJobs` | `backend/tools/getSavedJobs.js` | Queries saved job opportunities from MySQL with optional keyword and application status filters. |
+| `getJobDetails` | `backend/tools/getJobDetails.js` | Fetches full job specifications, required skills list, and prior analysis history for a specific job ID. |
+| `analyzeJobRequirements` | `backend/tools/analyzeJobRequirements.js` | Parses and deconstructs job descriptions into core required skills, preferred qualifications, and experience level criteria. |
+| `calculateJobMatch` | `backend/tools/calculateJobMatch.js` | Evaluates candidate skills against job requirements, computes percentage match score, and identifies matched skills and missing skill gaps. |
+| `saveJobAnalysis` | `backend/tools/saveJobAnalysis.js` | Persists evaluated match score, matched skills, missing skills, recommendations, and interview readiness into the `job_analyses` table. |
+| `generateInterviewQuestions` | `backend/tools/generateInterviewQuestions.js` | Generates role-specific technical questions, STAR-method behavioral questions, and preparation talking points based on candidate profile and job requirements. |
+| `getApplicationHistory` | `backend/tools/getApplicationHistory.js` | Retrieves candidate job application tracking records and previous job compatibility evaluations. |
 
 ---
 
-## 🏛️ 5. System Architecture
+## Agent Execution Flow
 
-```mermaid
-flowchart TD
-    subgraph Browser ["Client Layer (Vanilla JS)"]
-        UI[Dashboard / Agent Studio / Jobs UI]
-        APIClient[Vanilla JS API Client (api.js)]
-        UI <--> APIClient
-    end
+When a user submits a prompt in the AI Agent Studio, the backend executes the following multi-step loop:
 
-    subgraph Server ["Backend Layer (Node.js & Express)"]
-        REST[Express REST Router]
-        Controllers[Controllers: agent, job, profile, analysis]
-        Services[Services: agentService, jobService, profileService]
-        AgentOrch[Agent Orchestration Loop]
-        LLMService[Modular LLM Service]
-        ToolRegistry[Tool Dispatcher & Validator]
+1. **User Request Submission**: The candidate sends a natural-language goal (e.g., *"Which of my saved jobs is the best match for my skills? Prepare interview questions for the best matching job."*).
+2. **Run Initialization**: The backend creates an `agent_runs` record in MySQL with `status = 'running'` and initializes conversation context with the system prompt and user request.
+3. **Tool Schema Exposure**: All 8 tool definitions (formatted as standard OpenAI function calling JSON schemas) are provided to the LLM/planner.
+4. **Model Decision**: The model evaluates conversational context and determines whether it has sufficient information to respond or needs to execute tools.
+5. **Tool Validation & Argument Parsing**: When the model requests a tool call, the orchestrator validates that the tool exists in the registry and safely parses arguments.
+6. **Tool Execution**: The selected tool module executes with parameterized database queries and business logic.
+7. **Execution Audit Logging**: The tool execution is logged in `agent_tool_calls` with tool name, arguments JSON, result payload JSON, status (`success` or `failed`), and duration in milliseconds.
+8. **Context Feedback**: The tool output is serialized as a tool response message and appended to the conversation history.
+9. **Iterative Continuation**: The agent evaluates accumulated results and can invoke additional tools in sequence (e.g., fetching profile → fetching jobs → calculating match → generating interview questions → saving analysis).
+10. **Final Synthesis & Persistence**: Once no further tools are required, the model synthesizes a cohesive, data-backed Markdown answer. The `agent_runs` record is updated with `status = 'completed'`, iteration count, and total duration.
+11. **Client Rendering**: The client receives the final Markdown synthesis alongside a step-by-step activity timeline.
 
-        APIClient <--> REST
-        REST --> Controllers
-        Controllers --> Services
-        Services --> AgentOrch
-        AgentOrch <--> LLMService
-        AgentOrch <--> ToolRegistry
-    end
+> **Loop Safeguard**: The orchestrator enforces a hard limit of `maxIterations = 8` to protect against infinite loops or recursive tool requests.
 
-    subgraph Tools ["8 Controlled Backend Tools"]
-        T1[getCandidateProfile]
-        T2[getSavedJobs]
-        T3[getJobDetails]
-        T4[analyzeJobRequirements]
-        T5[calculateJobMatch]
-        T6[saveJobAnalysis]
-        T7[generateInterviewQuestions]
-        T8[getApplicationHistory]
+---
 
-        ToolRegistry --> T1
-        ToolRegistry --> T2
-        ToolRegistry --> T3
-        ToolRegistry --> T4
-        ToolRegistry --> T5
-        ToolRegistry --> T6
-        ToolRegistry --> T7
-        ToolRegistry --> T8
-    end
+## Technology Stack
 
-    subgraph Database ["Persistence Layer (MySQL 8.0)"]
-        DB[(careerpilot_db)]
-        T1 <--> DB
-        T2 <--> DB
-        T3 <--> DB
-        T5 <--> DB
-        T6 <--> DB
-        T7 <--> DB
-        T8 <--> DB
-        AgentOrch -. Logs Run & Tool Calls .-> DB
-    end
+### Frontend
+- **HTML5**: Semantic layout with accessibility standards (ARIA roles, live regions, responsive viewport).
+- **CSS3**: Modern custom properties (CSS variables), Flexbox, CSS Grid, responsive design.
+- **Vanilla JavaScript (ES6+)**: Native DOM manipulation, custom event handling, async/await fetch client, zero build-step or framework dependencies.
+
+### Backend
+- **Node.js**: Asynchronous event-driven runtime (engines `>=18.0.0`).
+- **Express.js**: RESTful API routing, middleware pipeline, static asset serving, and centralized error handling.
+
+### Database
+- **MySQL 8.0**: Relational database engine supporting ACID transactions, foreign keys, and JSON columns.
+- **`mysql2/promise`**: Promise-based connection pooling, parameterized queries, and SSL/TLS support.
+
+### AI Integration
+- **OpenAI API**: Standard function calling (`gpt-4o-mini` or configurable model).
+- **Google Gemini API**: Native function declarations and content generation (`gemini-1.5-flash`).
+- **Deterministic Mock Planner**: Built-in offline agent planner that follows the exact tool-calling lifecycle without requiring external API keys or incurring costs.
+
+### Development & Tooling
+- **npm**: Package management and script automation.
+- **Git & GitHub**: Version control, clean commit history, and public repository management.
+- **VS Code**: Development environment.
+
+### Deployment & Infrastructure
+- **Railway**: Cloud hosting platform for web services and managed databases.
+- **Railway Managed MySQL**: Cloud-hosted MySQL database with automated SSL/TLS encryption.
+- **HTTPS**: Automated TLS certificate termination provided by Railway.
+
+---
+
+## Database Design & Schema
+
+CareerPilot uses a normalized 3NF relational database schema consisting of **9 tables**, defined in `database/schema.sql`:
+
+```
+┌──────────────────┐       1:1       ┌──────────────────────┐
+│      users       │ ─────────────── │  candidate_profiles  │
+└──────────────────┘                 └──────────────────────┘
+         │                                       │
+         │ 1:N                                   │ 1:N
+         ▼                                       ▼
+┌──────────────────┐                 ┌──────────────────────┐
+│    agent_runs    │                 │   candidate_skills   │
+└──────────────────┘                 └──────────────────────┘
+         │                                       │
+         │ 1:N                                   │ N:1
+         ▼                                       ▼
+┌──────────────────┐                 ┌──────────────────────┐
+│ agent_tool_calls │                 │        skills        │
+└──────────────────┘                 └──────────────────────┘
+                                                 │
+                                                 │
+┌──────────────────┐       1:N       ┌──────────────────────┐
+│       jobs       │ ─────────────── │     applications     │
+└──────────────────┘                 └──────────────────────┘
+         │                                       │
+         │ 1:N                                   │
+         ▼                                       ▼
+┌───────────────────────────────────────────────────────────┐
+│                       job_analyses                        │
+└───────────────────────────────────────────────────────────┘
 ```
 
----
+### Table Descriptions
 
-## 🤖 6. Agent Architecture & Orchestration Loop
+1. **`users`**: System user records (`id`, `name`, `email`, timestamps).
+2. **`candidate_profiles`**: Candidate background, headline, education, years of experience, and summary. Linked to `users` via foreign key.
+3. **`skills`**: Standard taxonomy catalog of 26 technical skills categorized across Frontend, Backend, Database, DevOps, AI/ML, and General.
+4. **`candidate_skills`**: Composite mapping between candidate profiles and catalog skills, storing proficiency level (`Beginner`, `Intermediate`, `Advanced`, `Expert`) and years of experience.
+5. **`jobs`**: Job postings including title, company, location, work mode, salary range, description, and required skills (JSON array).
+6. **`applications`**: Application tracking linking candidates and jobs with statuses (`saved`, `applied`, `interviewing`, `offered`, `rejected`).
+7. **`job_analyses`**: Match evaluations storing computed `match_score`, `matched_skills` (JSON), `missing_skills` (JSON), `recommendations` (JSON), and `interview_readiness`.
+8. **`agent_runs`**: High-level audit log of agent execution sessions storing user request, completion status, iteration count, duration, and final response.
+9. **`agent_tool_calls`**: Fine-grained execution log of each individual tool invocation within an agent run, including arguments, results, status, and duration in milliseconds.
 
-The agent is implemented in [`backend/services/agentService.js`](backend/services/agentService.js). It adheres to a strict iterative execution cycle:
+### Clean Empty State vs. Manual Demo Seeding
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as Candidate Browser
-    participant API as Express API
-    participant Agent as Agent Orchestrator
-    participant LLM as LLM / Agent Planner
-    participant Tool as Backend Tool Registry
-    participant DB as MySQL Database
-
-    User->>API: POST /api/agent/run { request: "Which job is my best match?" }
-    API->>Agent: runAgent(prompt, userId, candidateId)
-    Agent->>DB: INSERT INTO agent_runs (status='running')
-    
-    loop Agent Execution Loop (Max 8 Iterations)
-        Agent->>LLM: callLLM(conversationHistory, toolSchemas)
-        alt LLM requests Tool Call
-            LLM-->>Agent: tool_calls: [{ name: "getCandidateProfile", args: {} }]
-            Agent->>Tool: executeTool("getCandidateProfile", args)
-            Tool->>DB: Parameterized SELECT query
-            DB-->>Tool: Candidate Profile + Skills
-            Tool-->>Agent: Tool Result JSON
-            Agent->>DB: INSERT INTO agent_tool_calls (status='success', duration)
-            Agent->>Agent: Append Tool Result to Conversation History
-        else LLM produces Final Response
-            LLM-->>Agent: finalResponse (Markdown synthesis)
-        end
-    end
-
-    Agent->>DB: UPDATE agent_runs (status='completed', duration_ms)
-    Agent-->>API: { runId, finalResponse, activities }
-    API-->>User: HTTP 200 JSON with step-by-step activity timeline
-```
+- **`npm run db:init`**: Executes `database/schema.sql`. It creates the 9 tables and populates only the base skills taxonomy (`skills`). It inserts **zero** users, candidate profiles, jobs, applications, analyses, or agent runs. The deployed application runs in this clean state.
+- **`npm run db:seed`**: Explicit manual command for local testing and interview demos. Executes `database/seed.sql` to populate sample jobs and candidate records. It is never triggered automatically during application startup.
 
 ---
 
-## 🔧 7. The 8 Controlled Backend Tools
-
-The agent never makes raw SQL calls. Every interaction is mediated through discrete tool modules with formal JSON schemas:
-
-| Tool Name | File | Description | Inputs |
-| :--- | :--- | :--- | :--- |
-| `getCandidateProfile` | [`backend/tools/getCandidateProfile.js`](backend/tools/getCandidateProfile.js) | Fetches candidate background, education, and skills with proficiencies. | `{ candidateId?: number }` |
-| `getSavedJobs` | [`backend/tools/getSavedJobs.js`](backend/tools/getSavedJobs.js) | Retrieves candidate's saved jobs with keyword/status filtering. | `{ status?: string, keyword?: string, limit?: number }` |
-| `getJobDetails` | [`backend/tools/getJobDetails.js`](backend/tools/getJobDetails.js) | Loads full job specs and previous evaluation for a specific job. | `{ jobId?: number, jobTitle?: string }` |
-| `analyzeJobRequirements` | [`backend/tools/analyzeJobRequirements.js`](backend/tools/analyzeJobRequirements.js) | Deconstructs job description into core skills, preferred skills, and experience. | `{ jobId?: number, jobDescription?: string }` |
-| `calculateJobMatch` | [`backend/tools/calculateJobMatch.js`](backend/tools/calculateJobMatch.js) | Evaluates percentage match score, matched skills, missing skills, and recommendations. | `{ jobId: number, candidateId?: number }` |
-| `saveJobAnalysis` | [`backend/tools/saveJobAnalysis.js`](backend/tools/saveJobAnalysis.js) | Persists calculated match score and recommendations to MySQL `job_analyses`. | `{ jobId, candidateId, matchScore, matchedSkills, missingSkills, recommendations }` |
-| `generateInterviewQuestions` | [`backend/tools/generateInterviewQuestions.js`](backend/tools/generateInterviewQuestions.js) | Generates tailored Technical, STAR Behavioral, and Skill Gap interview questions. | `{ jobId: number, candidateId?: number, focusArea?: string }` |
-| `getApplicationHistory` | [`backend/tools/getApplicationHistory.js`](backend/tools/getApplicationHistory.js) | Retrieves application tracking statuses and previous job analyses. | `{ candidateId?: number, limit?: number }` |
-
----
-
-## 🗄️ 8. Database Design & Relationships
-
-The database is fully normalized in 3NF and defined in [`database/schema.sql`](database/schema.sql).
-
-```mermaid
-erDiagram
-    users ||--o| candidate_profiles : "has one"
-    users ||--o{ agent_runs : "initiates"
-    candidate_profiles ||--o{ candidate_skills : "indexes"
-    skills ||--o{ candidate_skills : "categorized in"
-    candidate_profiles ||--o{ applications : "submits"
-    jobs ||--o{ applications : "receives"
-    candidate_profiles ||--o{ job_analyses : "evaluates"
-    jobs ||--o{ job_analyses : "analyzed in"
-    agent_runs ||--o{ agent_tool_calls : "contains"
-
-    users {
-        int id PK
-        varchar name
-        varchar email UK
-        timestamp created_at
-    }
-
-    candidate_profiles {
-        int id PK
-        int user_id FK
-        varchar headline
-        text summary
-        varchar education
-        decimal experience_years
-    }
-
-    skills {
-        int id PK
-        varchar name UK
-        enum category
-    }
-
-    candidate_skills {
-        int id PK
-        int candidate_id FK
-        int skill_id FK
-        enum proficiency_level
-        decimal years_of_experience
-    }
-
-    jobs {
-        int id PK
-        int user_id FK
-        varchar title
-        varchar company
-        varchar location
-        enum work_mode
-        json required_skills
-        enum status
-    }
-
-    job_analyses {
-        int id PK
-        int job_id FK
-        int candidate_id FK
-        int match_score
-        json matched_skills
-        json missing_skills
-        json recommendations
-        varchar interview_readiness
-    }
-
-    agent_runs {
-        int id PK
-        int user_id FK
-        text user_request
-        enum status
-        longtext final_response
-        int total_iterations
-        int duration_ms
-    }
-
-    agent_tool_calls {
-        int id PK
-        int run_id FK
-        varchar tool_name
-        json arguments
-        json result
-        enum status
-        int execution_time_ms
-    }
-```
-
----
-
-## 📡 9. REST API Specification
-
-### Candidate Profile
-- `GET /api/profile` — Fetch active candidate profile (`null` when empty).
-- `POST /api/profile` — Onboard new candidate profile with skills.
-- `PUT /api/profile/:id` — Update candidate profile and skills.
-- `GET /api/profile/skills` — Retrieve standard taxonomy catalog of skills.
-
-### Jobs
-- `GET /api/jobs` — Retrieve jobs (supports `?status=saved` and `?keyword=JavaScript`).
-- `POST /api/jobs` — Save a new job opportunity.
-- `GET /api/jobs/:id` — Retrieve job by ID with analysis history.
-- `DELETE /api/jobs/:id` — Remove a job listing.
-- `POST /api/jobs/:id/analyze` — Trigger direct compatibility analysis tool on a job.
-
-### Job Analyses & Stats
-- `GET /api/analyses` — List all saved job analyses.
-- `GET /api/analyses/:id` — Get single analysis details.
-- `GET /api/applications` — Retrieve application history records.
-- `GET /api/stats` — Dashboard metrics (total saved jobs, analyzed jobs, average score, runs).
-
-### AI Agent Orchestration
-- `POST /api/agent/run` — Execute agent with natural language prompt (`{ request: "..." }`).
-- `GET /api/agent/runs` — List recent agent execution runs.
-- `GET /api/agent/runs/:id` — Inspect run details with fine-grained tool calls.
-
-### Development & Demo Utilities
-- `POST /api/demo/seed` — Seed realistic demo user, jobs, and history for interviews.
-- `POST /api/demo/reset` — Reset database to clean, fresh empty state.
-
----
-
-## 📁 10. Project Structure
+## Project Structure
 
 ```
 careerpilot-ai-agent/
 ├── backend/
 │   ├── config/
 │   │   ├── db.js                   # MySQL connection pool & parameterized query helper
-│   │   └── env.js                  # Environment variable configuration
+│   │   └── env.js                  # Environment variable configuration & fallbacks
 │   ├── controllers/
-│   │   ├── agentController.js      # Controller for agent execution and run inspection
+│   │   ├── agentController.js      # Controller for agent execution & run history
 │   │   ├── analysisController.js   # Controller for stats, analyses, and demo toggles
-│   │   ├── jobController.js        # Controller for job management and direct analysis
-│   │   └── profileController.js    # Controller for candidate onboarding and skills
+│   │   ├── jobController.js        # Controller for job CRUD and direct analysis
+│   │   └── profileController.js    # Controller for candidate profile and skills
 │   ├── middleware/
-│   │   └── errorHandler.js         # Centralized HTTP error handling
+│   │   └── errorHandler.js         # Centralized HTTP error handler
 │   ├── routes/
-│   │   ├── agentRoutes.js          # /api/agent routes
-│   │   ├── analysisRoutes.js       # /api/analyses, /api/stats, /api/demo routes
-│   │   ├── jobRoutes.js            # /api/jobs routes
-│   │   └── profileRoutes.js        # /api/profile routes
+│   │   ├── agentRoutes.js          # /api/agent endpoints
+│   │   ├── analysisRoutes.js       # /api/analyses, /api/stats, /api/demo endpoints
+│   │   ├── jobRoutes.js            # /api/jobs endpoints
+│   │   └── profileRoutes.js        # /api/profile endpoints
 │   ├── services/
-│   │   ├── agentService.js         # Core Agent Orchestrator with execution loop
-│   │   ├── jobService.js           # Job CRUD and evaluation logic
-│   │   ├── llmService.js           # Modular LLM provider (OpenAI / Gemini / Mock Planner)
-│   │   └── profileService.js       # Candidate profile creation and catalog lookups
+│   │   ├── agentService.js         # Agent Orchestration Loop & run manager
+│   │   ├── jobService.js           # Job CRUD and evaluation service
+│   │   ├── llmService.js           # Modular LLM client (OpenAI / Gemini / Mock Planner)
+│   │   └── profileService.js       # Candidate profile and skills service
 │   ├── test/
-│   │   └── runTests.js             # Comprehensive automated verification suite
-│   ├── tools/                      # 8 Discrete Controlled Backend Tools
+│   │   └── runTests.js             # Automated 23-test verification suite
+│   ├── tools/
 │   │   ├── analyzeJobRequirements.js
 │   │   ├── calculateJobMatch.js
 │   │   ├── generateInterviewQuestions.js
@@ -330,241 +251,260 @@ careerpilot-ai-agent/
 │   │   ├── getCandidateProfile.js
 │   │   ├── getJobDetails.js
 │   │   ├── getSavedJobs.js
-│   │   ├── index.js                # Tool catalog definitions & execution dispatcher
+│   │   ├── index.js                # Tool Registry & Execution Dispatcher
 │   │   └── saveJobAnalysis.js
-│   └── server.js                   # Express server entry point
+│   └── server.js                   # Express server entry point & static file hosting
 ├── database/
-│   ├── initDb.js                   # Script to create clean, empty database schema
-│   ├── schema.sql                  # MySQL 3NF database schema
-│   ├── seed.sql                    # Realistic demo data for manual testing
-│   └── seedDb.js                   # Script to explicitly seed demo data
+│   ├── initDb.js                   # Script to initialize clean, empty database schema
+│   ├── schema.sql                  # 9-table MySQL relational schema
+│   ├── seed.sql                    # Manual demo data for testing and demonstrations
+│   └── seedDb.js                   # Script to manually seed demo data
 ├── frontend/
 │   ├── css/
-│   │   └── styles.css              # Modern responsive dark theme styling
+│   │   └── styles.css              # Responsive custom dark theme styling
 │   ├── js/
-│   │   ├── agent.js                # Agent Studio, activity stepper, markdown renderer
-│   │   ├── api.js                  # REST API client
-│   │   ├── app.js                  # Main controller, tab routing, event binding
-│   │   └── ui.js                   # DOM rendering, cards, tables, toasts, modals
-│   └── index.html                  # Accessible semantic dashboard UI
-├── .env.example                    # Environment template
-├── .gitignore                      # Git ignore file
-├── package.json                    # Project dependencies and scripts
-└── README.md                       # Complete technical portfolio documentation
+│   │   ├── agent.js                # AI Agent Studio controller & activity stepper
+│   │   ├── api.js                  # Reusable native fetch REST API client
+│   │   ├── app.js                  # Application state, tab navigation, event binding
+│   │   └── ui.js                   # UI rendering helpers, modals, and toasts
+│   └── index.html                  # Accessible semantic single-page dashboard
+├── .env.example                    # Environment variable template
+├── .gitignore                      # Git ignore rules (protects .env and dependencies)
+├── package.json                    # Dependencies, scripts, and Node engine constraints
+└── README.md                       # Project documentation
 ```
 
 ---
 
-## ⚡ 11. Setup & Local Development
+## Local Setup
 
 ### Prerequisites
-- **Node.js**: v18.0.0 or higher
-- **MySQL**: 8.0 or higher running locally on port 3306
+- **Node.js**: `v18.0.0` or higher
+- **MySQL**: `8.0` or higher running locally on port `3306`
 
-### Step 1: Clone and Install
+### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/careerpilot-ai-agent.git
+git clone https://github.com/NagaVardhini22/careerpilot-ai-agent.git
 cd careerpilot-ai-agent
+```
+
+### 2. Install Dependencies
+```bash
 npm install
 ```
 
-### Step 2: Configure Environment Variables
-Copy `.env.example` to `.env`:
+### 3. Configure Environment Variables
+Create a `.env` file in the project root by copying the template:
 ```bash
 cp .env.example .env
 ```
-Update your MySQL credentials in `.env`:
-```env
-PORT=3000
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=your_username
-DB_PASSWORD=your_password
-DB_NAME=careerpilot_db
+Open `.env` and fill in your local MySQL credentials. The `.env` file is gitignored and will never be tracked by version control.
 
-# AI Provider: "mock" (offline default), "openai", or "gemini"
-LLM_PROVIDER=mock
-LLM_API_KEY=
-LLM_MODEL=gpt-4o-mini
-```
-
-### Step 3: Initialize Clean Database
-Initialize the clean, empty database schema:
+### 4. Initialize the Database
+Run the initialization script to create the 9 tables:
 ```bash
 npm run db:init
 ```
+*(This creates an empty schema with 0 candidate profiles and 0 jobs).*
 
-### Step 4: Start the Application
-Run in development mode (with auto-reload):
-```bash
-npm run dev
-```
-Or start standard production server:
+### 5. Start the Application
+Start the server in standard mode:
 ```bash
 npm start
 ```
-Open your browser at: **`http://localhost:3000`**
+Or start in development mode with hot-reloading:
+```bash
+npm run dev
+```
 
-### Step 5: (Optional) Manual Demo Seeding
-If you want to instantly populate 6 realistic jobs, candidate profile, and history for an interview demo:
-- Click **"Load Demo Data"** in the UI sidebar, OR
-- Run in terminal:
+Open your browser and navigate to: **`http://localhost:3000`**
+
+---
+
+## Environment Variables
+
+The application reads configuration through environment variables (defined in `backend/config/env.js` and referenced in `.env.example`):
+
+| Variable Name | Required | Description |
+| :--- | :--- | :--- |
+| `PORT` | Optional | Port on which Express listens (default: `3000`, dynamically provided by Railway). |
+| `NODE_ENV` | Optional | Application runtime environment (`development` or `production`). |
+| `DATABASE_URL` / `MYSQL_URL` | Optional | Full MySQL connection URI (used by cloud providers like Railway). |
+| `DB_HOST` | Required* | MySQL server hostname (default: `localhost`). |
+| `DB_PORT` | Required* | MySQL server port (default: `3306`). |
+| `DB_USER` | Required* | MySQL user account. |
+| `DB_PASSWORD` | Required* | MySQL user password. |
+| `DB_NAME` | Required* | Target MySQL database name (default: `careerpilot_db`). |
+| `DB_SSL` / `MYSQL_SSL` | Optional | Set to `true` to enable SSL/TLS encryption for managed cloud MySQL. |
+| `DB_SSL_REJECT_UNAUTHORIZED` | Optional | Set to `false` for cloud hosts using self-signed certificates. |
+| `LLM_PROVIDER` | Optional | AI provider selection: `mock` (default offline), `openai`, or `gemini`. |
+| `LLM_API_KEY` | Optional | API key for OpenAI or Gemini (not needed when using `mock`). |
+| `LLM_MODEL` | Optional | Target model name (e.g., `gpt-4o-mini`, `gemini-1.5-flash`). |
+
+*\* Note: When `DATABASE_URL` is supplied, discrete database parameters (`DB_HOST`, `DB_PORT`, etc.) are not required.*
+
+---
+
+## Database Initialization & Seed Controls
+
+CareerPilot provides clear, explicit commands for database state management:
+
+### Initialize Clean State (Default)
+```bash
+npm run db:init
+```
+- Creates all 9 tables if they do not exist.
+- Populates the standard taxonomy of 26 technical skills.
+- Leaves all candidate profiles, jobs, applications, analyses, and agent runs completely empty (**0 rows**).
+
+### Seed Demo Data (Manual / Development Only)
 ```bash
 npm run db:seed
 ```
-To reset back to clean empty state anytime:
-- Click **"Reset Clean State"** in the UI sidebar, OR
-- Run:
+- Populates a generic demo candidate, 6 realistic job opportunities, and sample history.
+- Can also be triggered via the **"Load Demo Data"** button in the web interface.
+
+### Reset Clean State
 ```bash
 npm run db:reset
 ```
+- Drops existing tables and re-executes `schema.sql`.
+- Can also be triggered via the **"Reset Clean State"** button in the web interface.
 
-### Step 6: Run Automated Tests
-Execute the 23-test verification suite:
+---
+
+## Testing
+
+CareerPilot includes an automated end-to-end verification suite in `backend/test/runTests.js`.
+
+To run the verification suite:
 ```bash
 npm test
 ```
 
+### Verified Test Results (23 Passed, 0 Failed)
+
+The automated test suite verifies 9 functional domains against a live server:
+
+```text
+====================================================
+🧪 Starting CareerPilot Automated Verification Suite
+📡 Target Backend: http://localhost:3000
+====================================================
+
+▶ 1. Healthcheck & Database Connection
+  ✅ PASS: Server is online
+  ✅ PASS: Database is connected
+
+▶ 2. Fresh Empty State Verification
+  ✅ PASS: Profile is null in clean state
+  ✅ PASS: Zero jobs in clean state
+  ✅ PASS: Stats reflect zero jobs
+
+▶ 3. Agent Execution on Empty Profile
+  ✅ PASS: Agent handles empty state without crashing
+  ✅ PASS: Agent advises candidate to create profile
+
+▶ 4. Candidate Profile Creation
+  ✅ PASS: Profile created with HTTP 201
+  ✅ PASS: Profile ID returned
+  ✅ PASS: Skills cataloged correctly
+
+▶ 5. Job Creation & Retrieval
+  ✅ PASS: Job created with HTTP 201
+  ✅ PASS: Job ID generated
+
+▶ 6. Direct Job Compatibility Analysis
+  ✅ PASS: Analysis successful
+  ✅ PASS: Match score computed (> 70%)
+  ✅ PASS: Matched skills identified
+
+▶ 7. Autonomous Agent Loop Execution
+  ✅ PASS: Agent completed workflow
+  ✅ PASS: Multiple iterations logged
+  ✅ PASS: Activity steps recorded
+  ✅ PASS: Final response synthesized
+
+▶ 8. Agent Audit Log & Tool Call Persistence
+  ✅ PASS: Run retrieved from MySQL
+  ✅ PASS: Granular tool calls recorded in agent_tool_calls
+
+▶ 9. Error Handling Verification
+  ✅ PASS: Empty request rejected with 400
+  ✅ PASS: Invalid Job ID rejected with 404
+
+====================================================
+📊 Test Summary: 23 Passed, 0 Failed
+====================================================
+```
+
 ---
 
-## 💬 12. Example Agent Requests
+## Deployment on Railway
 
-Test these prompts in the **AI Agent Studio**:
+CareerPilot is deployed as a single production web service on **Railway**:
 
-1. **Job Compatibility**:
-   > *"Which of my saved jobs is the best match for my skills?"*
-2. **Multi-Step Match & Interview Prep**:
+- **Web Service**: A Node.js/Express web service that serves the responsive Vanilla JavaScript frontend and the REST API.
+- **Database Service**: A dedicated **Railway Managed MySQL** instance.
+- **Database Connectivity**: The Node.js backend connects to the Railway Managed MySQL database using environment-based configuration and secure database connectivity.
+- **HTTPS Endpoint**: Railway automatically handles SSL/TLS termination and routes inbound traffic over public HTTPS.
+
+**Live Production URL:**  
+[https://careerpilot-ai-agent-production.up.railway.app/](https://careerpilot-ai-agent-production.up.railway.app/)
+
+---
+
+## Security Practices
+
+- **Strict Environment Isolation**: Sensitive keys (`LLM_API_KEY`, database credentials) reside exclusively on the server in `.env` (or cloud dashboard environment variables). No credentials are sent to or exposed in client bundles.
+- **Version Control Protection**: `.env` and credential files are strictly ignored in `.gitignore`. Tracked files are verified through automated secret scans.
+- **Parameterized SQL Queries**: All database queries use parameterized placeholders (`?`) executed via `mysql2/promise`. Input parameters are never concatenated into SQL strings, reducing SQL injection risk through parameterized queries.
+- **Sandboxed Agent Tools**: The LLM cannot execute raw shell commands or arbitrary database queries. It can only request execution of registered, type-checked tool functions.
+- **Input & Parameter Validation**: Tool arguments are parsed and sanitized before execution. Empty requests or invalid identifiers receive clean HTTP error responses (`400`, `404`) without leaking stack traces.
+- **Iteration Limits**: A hard execution safeguard of `maxIterations = 8` terminates any cyclic reasoning loops.
+
+---
+
+## Demo & Interview Walkthrough
+
+An interviewer can evaluate the end-to-end functionality in under 3 minutes:
+
+1. **Open the Live Application**: Visit [https://careerpilot-ai-agent-production.up.railway.app/](https://careerpilot-ai-agent-production.up.railway.app/).
+2. **Review the Empty Onboarding State**: Observe the dashboard and notice that candidate profiles and jobs start at zero.
+3. **Create a Candidate Profile**: Click the **Profile** tab in the sidebar. Enter a professional headline, years of experience, education, and add technical skills (e.g., *JavaScript*, *Node.js*, *MySQL*, *Express.js*). Save the profile.
+4. **Save a Job Opportunity**: Navigate to the **Jobs Board** and click **Add New Job**. Enter a role (e.g., *Full Stack Developer* at *Stripe* requiring *JavaScript, Node.js, REST APIs, and MySQL*).
+5. **Open AI Agent Studio**: Navigate to the **AI Agent Studio** tab.
+6. **Submit a Career Request**: Enter a prompt such as:
    > *"Analyze my saved jobs and tell me which job is the best match for my skills. Then prepare interview questions for the best matching job."*
-3. **Keyword Filtered Search**:
-   > *"Analyze my saved JavaScript jobs."*
-4. **Skill Gap Diagnostics**:
-   > *"Which skills am I missing for Job 1?"*
-5. **Interview Question Generation**:
-   > *"Prepare interview questions for the best matching job."*
-6. **Application History**:
-   > *"Show me my previous job analyses and application history."*
+7. **Observe Autonomous Tool Execution**: Watch the activity timeline as the agent invokes:
+   - `getCandidateProfile`
+   - `getSavedJobs`
+   - `calculateJobMatch`
+   - `generateInterviewQuestions`
+   - `saveJobAnalysis`
+8. **Inspect Results & History**: Read the synthesized evaluation and tailored interview questions in the response card. Navigate to **Agent Runs** to view the full audit record and timestamps.
+9. **Explore Reset / Demo Utilities**: Test the **"Reset Clean State"** or **"Load Demo Data"** actions in the sidebar to observe programmatic database state transitions.
 
 ---
 
-## 🔒 13. Security & Engineering Best Practices
+## Why This Project
 
-- **Zero SQL Injection**: Every database interaction uses parameterized prepared statements with placeholder `?` tokens via `mysql2/promise`. Input parameters are never concatenated into SQL strings.
-- **Backend Key Isolation**: API keys (`LLM_API_KEY`, `OPENAI_API_KEY`) reside exclusively in the backend runtime via `.env`. No secrets are exposed to the client bundle.
-- **Sandboxed Agent Tools**: The LLM is prohibited from executing arbitrary system or database commands. It can only request execution of verified tools within the registry.
-- **JSON Schema Argument Validation**: Tool parameters are strongly validated against JSON schemas before execution.
-- **Iteration Limits & Cycle Prevention**: The orchestrator enforces a hard `maxIterations = 8` cap to prevent infinite agent execution loops.
+This project was built to demonstrate full-stack engineering proficiency and practical AI systems design:
 
----
-
-## 🎯 14. 30 Technical Interview Questions & In-Depth Answers
-
-Be prepared to answer these questions during technical interviews:
-
-#### 1. What problem does CareerPilot solve?
-> It eliminates guesswork in job hunting by providing an autonomous AI agent that evaluates candidate qualifications against real job descriptions, calculates deterministic match scores, flags specific skill gaps, and generates targeted technical and behavioral interview preparation questions.
-
-#### 2. Why did you choose this clean layered architecture?
-> Separation of concerns. The Controller layer handles HTTP routing and input validation; the Service layer encapsulates business logic; the Agent Orchestrator manages the iterative reasoning loop; the Tool Registry isolates database queries and algorithms; and the Database layer guarantees relational integrity. This ensures maintainability and modular testability.
-
-#### 3. Why Vanilla JavaScript instead of React or Next.js?
-> To demonstrate fundamental mastery of core web standards: semantic HTML5, modern CSS3 layout algorithms, native DOM APIs, event delegation, and asynchronous fetch flows. It avoids virtual DOM overhead and framework bloat while highlighting clean architectural design.
-
-#### 4. Why Node.js and Express for the backend?
-> Node.js operates an event-driven, non-blocking I/O runtime. When orchestrating AI agents, the server frequently awaits external LLM responses and database queries. Node's event loop handles concurrent asynchronous operations efficiently without thread-pool starvation.
-
-#### 5. Why MySQL instead of MongoDB or SQLite?
-> Career opportunities, candidate profiles, skills taxonomies, and application records possess inherently relational structures with strict referential constraints (e.g., candidate skills referencing skills catalog, job analyses referencing jobs). MySQL provides ACID transactions, foreign keys with cascade rules, and query optimization indexing.
-
-#### 6. Why REST APIs instead of GraphQL or WebSockets?
-> REST provides standard HTTP verbs, predictable status codes, and simplicity. Because agent runs and job CRUD operations represent distinct resource transitions, REST is explainable and lightweight. (A WebSocket or SSE stream can be added later for live token streaming).
-
-#### 7. What is an AI agent?
-> An AI agent is an autonomous software system that perceives user intent, formulates a multi-step plan, selects and executes external tools to interact with databases or APIs, observes tool outcomes, and iterates until the goal is achieved.
-
-#### 8. How is an AI agent different from a normal chatbot?
-> A chatbot is a single-turn text completion engine: user sends text, model guesses a reply based on training weights. An agent has **agency**: it can decide to query a database, perform mathematical calculations, record audit logs, call multiple tools in sequence, and verify outputs before answering.
-
-#### 9. What is tool/function calling?
-> Function calling is a mechanism where an LLM is provided with formal JSON Schemas describing callable functions. Instead of generating user-facing text, the LLM outputs a structured JSON object specifying a function name and arguments. The host application executes the function and feeds the result back to the model.
-
-#### 10. How does the agent decide which tool to use?
-> The orchestrator passes tool definitions (names, descriptions, and parameter schemas) in the LLM context. The LLM compares the user's intent against the semantic descriptions of the tools and determines which tool—if any—is necessary to gather the missing information.
-
-#### 11. How does the backend execute a tool?
-> The agent orchestrator validates the requested tool name against a private tool registry Map. If recognized, it parses the arguments, checks constraints, and invokes the tool's asynchronous `execute(args)` function.
-
-#### 12. How does the tool result return to the LLM?
-> The tool output is serialized into a standard OpenAI-format tool response message: `{ role: 'tool', tool_call_id: id, name: toolName, content: JSON.stringify(result) }`. This message is appended to the conversation history and passed back to the model for the next reasoning step.
-
-#### 13. How does the agent know when to stop?
-> When the LLM evaluates the accumulated conversation history and tool outputs and determines that it has sufficient information to fulfill the user's request, it outputs standard text content without generating any `tool_calls`. The orchestrator detects this and terminates the loop.
-
-#### 14. Why doesn't the LLM access MySQL directly?
-> Direct LLM database access poses catastrophic security and reliability risks, including unintended schema drops, data corruption, query hallucination, and SQL injection. Controlled tools provide a secure abstraction boundary where queries are parameterized, business rules are enforced, and inputs are validated.
-
-#### 15. Why is the API key stored in the backend?
-> Frontend code is publicly inspectable in the browser. Storing API keys in client-side JavaScript exposes secrets to anyone opening browser DevTools. The backend acts as a secure proxy, authenticating requests and protecting credentials via environment variables.
-
-#### 16. How does the frontend communicate with the backend?
-> Through standard HTTP JSON REST requests using the native `fetch` API, wrapped in a reusable modular client (`frontend/js/api.js`).
-
-#### 17. What happens when the LLM fails or returns an error?
-> The orchestrator wraps LLM calls in `try/catch` blocks. If an API call fails or times out, the error is recorded in the `agent_runs` table with status `failed`, and a clean error response is returned to the frontend without exposing internal stack traces.
-
-#### 18. How do you prevent SQL injection?
-> By never concatenating user input directly into SQL strings. All database queries use parameterized placeholders (`?`) executed through `mysql2/promise`'s `pool.execute(sql, params)` method.
-
-#### 19. How are agent runs audited and stored?
-> We use two dedicated relational tables: `agent_runs` tracks the overall session (user prompt, status, iteration count, duration, final answer), while `agent_tool_calls` stores a fine-grained log of every tool executed during that run (tool name, arguments JSON, result payload JSON, execution time ms).
-
-#### 20. How would you scale this application?
-> 1. Decouple long-running agent workflows using background job queues (BullMQ / Redis).
-> 2. Introduce Server-Sent Events (SSE) or WebSockets for streaming token and tool step responses.
-> 3. Add Redis caching for repeated tool queries (e.g. candidate profile or job details).
-> 4. Deploy Node.js instances behind an Nginx reverse proxy with horizontal auto-scaling.
-
-#### 21. What are the limitations of the current implementation?
-> 1. Agent execution is currently synchronous over HTTP (fine for sub-5 second runs, but long multi-tool runs benefit from streaming).
-> 2. Authentication is intentionally minimal (profile ID based) to focus on agent architecture rather than auth boilerplates.
-
-#### 22. Why did you use normalized 3NF schema instead of storing everything in JSON?
-> Relational normalization avoids data duplication, ensures referential integrity via foreign key cascades, and enables efficient SQL indexing and aggregations (such as counting jobs or calculating average match scores).
-
-#### 23. What role does the Mock Agent Planner play?
-> It provides an offline, deterministic decision engine implementing the exact same tool-calling contract as OpenAI/Gemini. It allows recruiters and developers to test the full agent loop, execute real MySQL queries, and inspect tool audit logs without requiring a paid external API key.
-
-#### 24. What is the difference between required skills and preferred skills in the analysis tool?
-> Required skills form the core baseline needed for the position (weighted heavily in compatibility scoring), whereas preferred skills provide bonus weighting and help identify advanced expansion talking points for interview preparation.
-
-#### 25. How is the match score calculated in `calculateJobMatch`?
-> It evaluates the set intersection of candidate skills against required job skills, applying proficiency weighting (Expert = 1.0, Advanced = 0.9, Intermediate = 0.75, Beginner = 0.5) to produce a normalized 0–100 percentage compatibility score.
-
-#### 26. How do you handle malformed arguments from the LLM?
-> Arguments are wrapped in safe JSON parsing with fallback defaults. If an argument cannot be coerced to the expected schema, the tool returns a descriptive error message in the tool response, prompting the LLM to correct its request.
-
-#### 27. What is the purpose of the iteration cap?
-> LLMs can occasionally enter cyclical reasoning loops (e.g., calling the same tool repeatedly). A hard iteration cap (`maxIterations = 8`) guarantees that execution terminates safely even if the model fails to reach a natural conclusion.
-
-#### 28. How does the onboarding flow handle empty states?
-> When no candidate profile is detected, `GET /api/profile` returns `{ profile: null }`. The frontend dynamically renders an onboarding view prompting profile creation, and the agent politely instructs the user to configure their background when prompted.
-
-#### 29. Can multiple users exist in the database?
-> Yes. Tables (`candidate_profiles`, `jobs`, `agent_runs`) are structured with `user_id` foreign keys, allowing the schema to support multi-tenant isolation.
-
-#### 30. What was the most challenging engineering aspect of this project?
-> Designing an explainable, stateful agent loop that seamlessly bridges natural-language LLM tool calls with strict relational database transactions, while ensuring that the application remains functional both offline and with live LLM providers.
+- **Clean Layered Architecture**: Clear separation of concerns between HTTP Controllers, Business Logic Services, Agent Orchestration, Tool Execution, and Database Persistence.
+- **Autonomous Agent Implementation**: Demonstrates how an AI model can interact with real databases and business logic through structured tool calling rather than basic chat completion.
+- **Production Relational Data Modeling**: A normalized 3NF schema in MySQL with foreign key cascades, JSON data types, and indexed queries.
+- **Core Web Fundamentals**: Demonstrates full UI capability using semantic HTML5, modern CSS3, and native Vanilla JavaScript without relying on heavy frameworks.
+- **Production Deployment**: Cloud deployment on Railway with managed MySQL, dynamic SSL configuration, and environment-driven architecture.
+- **Comprehensive Verification**: 23 automated tests covering health checks, empty state handling, profile management, job scoring, agent loops, audit logging, and error boundaries.
 
 ---
 
-## 🔮 15. Future Improvements
+## Future Improvements
 
-- [ ] **Streaming Responses (SSE)**: Stream token-by-token LLM output and live tool execution events.
-- [ ] **Resume PDF Parser**: Allow candidates to upload PDF resumes and auto-extract skills into MySQL.
-- [ ] **Vector Search & Embeddings**: Implement hybrid semantic search (pgvector or Milvus) alongside SQL filters.
-- [ ] **Multi-Agent Collaboration**: Split into specialized sub-agents (Job Scout Agent, Interview Coach Agent, Resume Tailor Agent).
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+Planned future enhancements include:
+- **Streaming Responses (SSE)**: Implement Server-Sent Events to stream LLM tokens and live tool execution steps in real time.
+- **Resume PDF Parser**: Allow candidates to upload resume files and automatically extract skills and experience into the database.
+- **Semantic Vector Search**: Integrate vector embeddings (e.g., pgvector or Milvus) to support semantic matching alongside deterministic keyword matching.
+- **Multi-Tenant User Authentication**: Add JWT or session-based authentication to support isolated multi-user environments.
+- **Asynchronous Agent Queue**: Offload intensive agent workflows to a Redis-backed background worker queue (e.g., BullMQ).
