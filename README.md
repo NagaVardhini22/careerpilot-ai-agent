@@ -347,7 +347,6 @@ careerpilot-ai-agent/
 │   │   ├── app.js                  # Main controller, tab routing, event binding
 │   │   └── ui.js                   # DOM rendering, cards, tables, toasts, modals
 │   └── index.html                  # Accessible semantic dashboard UI
-├── .env                            # Local environment configuration
 ├── .env.example                    # Environment template
 ├── .gitignore                      # Git ignore file
 ├── package.json                    # Project dependencies and scripts
@@ -379,8 +378,8 @@ Update your MySQL credentials in `.env`:
 PORT=3000
 DB_HOST=localhost
 DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=your_mysql_password
+DB_USER=your_username
+DB_PASSWORD=your_password
 DB_NAME=careerpilot_db
 
 # AI Provider: "mock" (offline default), "openai", or "gemini"

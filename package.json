@@ -20,7 +20,7 @@
     "mysql",
     "vanilla-js"
   ],
-  "author": "Anand Rudra",
+  "author": "CareerPilot Contributors",
   "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",
