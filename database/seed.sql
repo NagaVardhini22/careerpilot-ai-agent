@@ -4,8 +4,6 @@
 -- Do NOT execute this automatically during application startup.
 -- ============================================================================
 
-USE careerpilot_db;
-
 SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE agent_tool_calls;
 TRUNCATE TABLE agent_runs;
