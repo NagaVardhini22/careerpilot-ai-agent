@@ -44,43 +44,28 @@ Key design principles of CareerPilot:
 
 ---
 
-## AI Agent Architecture
+## System Architecture
 
-CareerPilot isolates the reasoning model from direct data storage through a strict layered architecture:
+CareerPilot isolates the reasoning model from direct data storage through a clean, layered architecture:
 
-```
-Browser (Vanilla JavaScript)
-    │
-    ▼
-Express REST API Router
-    │
-    ▼
-Agent Orchestrator (backend/services/agentService.js)
-    │
-    ├──▶ LLM / Agent Planner (OpenAI / Gemini / Deterministic Mock)
-    │        │
-    │        ▼ (Requests Tool Execution via JSON Schema)
-    │
-    ├──▶ Tool Registry (backend/tools/index.js)
-    │        │
-    │        ▼ (Validates & Dispatches)
-    │
-    ├──▶ Controlled Backend Tools (8 Discrete Modules)
-    │        │
-    │        ▼ (Parameterized Queries & Algorithms)
-    │
-    ├──▶ MySQL Database (Normalized 3NF Relational Tables)
-    │        │
-    │        ▼ (Returns Structured Data)
-    │
-    ├──▶ Tool Results appended to Context & Logged to MySQL
-    │        │
-    │        ▼ (Next Reasoning Step or Final Synthesis)
-    │
-Final Structured Markdown Response
-    │
-    ▼
-Browser (Rendered Response + Step-by-Step Activity Timeline)
+```mermaid
+flowchart TD
+    Browser["User / Browser"]
+    Frontend["Vanilla JavaScript Frontend"]
+    Backend["Node.js + Express Backend"]
+    Agent["AI Agent Orchestrator"]
+    LLM["LLM / Agent Planner"]
+    Registry["Tool Registry"]
+    Tools["Controlled Tools"]
+    Database[("MySQL Database")]
+
+    Browser --> Frontend
+    Frontend --> Backend
+    Backend --> Agent
+    Agent <--> LLM
+    Agent --> Registry
+    Registry --> Tools
+    Tools <--> Database
 ```
 
 ### Why the LLM Does Not Directly Access MySQL
