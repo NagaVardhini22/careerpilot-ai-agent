@@ -1,6 +1,6 @@
 /**
  * CareerPilot — API Client
- * Vanilla JavaScript REST API wrapper.
+ * Vanilla JavaScript REST API wrapper with CSRF headers and HTTP-only cookie support.
  */
 
 const API = {
@@ -10,20 +10,56 @@ const API = {
     const url = `${this.baseUrl}${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest', // CSRF protection header required for mutating cookie requests
       ...options.headers
     };
 
     try {
-      const response = await fetch(url, { ...options, headers });
-      const data = await response.json();
+      const response = await fetch(url, {
+        credentials: 'same-origin', // Send HTTP-only session cookies
+        ...options,
+        headers
+      });
+
+      const data = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        throw new Error(data.error || `Request failed with status ${response.status}`);
+        const error = new Error(data.error || `Request failed with status ${response.status}`);
+        error.status = response.status;
+        throw error;
       }
       return data;
     } catch (error) {
-      console.error(`[API Error] ${endpoint}:`, error.message);
+      if (error.status !== 401) {
+        console.error(`[API Error] ${endpoint}:`, error.message);
+      }
       throw error;
     }
+  },
+
+  // Authentication
+  register({ name, email, password }) {
+    return this.request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password })
+    });
+  },
+
+  login({ email, password }) {
+    return this.request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+  },
+
+  logout() {
+    return this.request('/auth/logout', {
+      method: 'POST'
+    });
+  },
+
+  getCurrentUser() {
+    return this.request('/auth/me');
   },
 
   // Health
@@ -60,7 +96,7 @@ const API = {
     return this.request('/profile/skills');
   },
 
-  // Jobs
+  // Jobs Board
   getJobs(filters = {}) {
     const params = new URLSearchParams();
     if (filters.status) params.append('status', filters.status);
@@ -93,6 +129,28 @@ const API = {
     });
   },
 
+  // External Live Job Discovery
+  searchLiveJobs(query = {}) {
+    const params = new URLSearchParams();
+    if (query.keyword) params.append('keyword', query.keyword);
+    if (query.location) params.append('location', query.location);
+    if (query.remoteOnly) params.append('remoteOnly', 'true');
+    if (query.experienceLevel) params.append('experienceLevel', query.experienceLevel);
+    if (query.provider && query.provider !== 'all') params.append('provider', query.provider);
+    return this.request(`/jobs/external/search?${params.toString()}`);
+  },
+
+  getJobProviders() {
+    return this.request('/jobs/external/providers');
+  },
+
+  saveExternalJob(jobData) {
+    return this.request('/jobs/external/save', {
+      method: 'POST',
+      body: JSON.stringify(jobData)
+    });
+  },
+
   // Analyses & Applications
   getAnalyses(candidateId = null) {
     const q = candidateId ? `?candidateId=${candidateId}` : '';
@@ -109,10 +167,10 @@ const API = {
   },
 
   // AI Agent
-  runAgent(userRequest, userId = 1, candidateId = null) {
+  runAgent(userRequest, candidateId = null) {
     return this.request('/agent/run', {
       method: 'POST',
-      body: JSON.stringify({ request: userRequest, userId, candidateId })
+      body: JSON.stringify({ request: userRequest, candidateId })
     });
   },
 

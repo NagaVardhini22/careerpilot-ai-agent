@@ -6,7 +6,6 @@
 
 # Dependencies
 node_modules/
-package-lock.json
 
 # Secret & Credential files
 credentials.json
@@ -22,3 +21,6 @@ yarn-error.log*
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Scratch and temporary scripts
+scratch/

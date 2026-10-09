@@ -21,6 +21,11 @@ async function getJobDetails(args = {}) {
     throw new Error('Either jobId or jobTitle must be provided to getJobDetails.');
   }
 
+  if (args.userId) {
+    sql += ' AND (user_id = ? OR user_id IS NULL)';
+    params.push(args.userId);
+  }
+
   const rows = await db.query(sql, params);
   if (!rows || rows.length === 0) {
     throw new Error(`Job not found with criteria: ${JSON.stringify(args)}`);
@@ -34,11 +39,16 @@ async function getJobDetails(args = {}) {
     requiredSkills = [];
   }
 
-  // Fetch any past analysis
-  const analyses = await db.query(
-    'SELECT id, match_score, matched_skills, missing_skills, recommendations, interview_readiness, created_at FROM job_analyses WHERE job_id = ? ORDER BY created_at DESC LIMIT 1',
-    [job.id]
-  );
+  // Fetch any past analysis scoped to candidate
+  let pastSql = 'SELECT id, match_score, matched_skills, missing_skills, recommendations, interview_readiness, created_at FROM job_analyses WHERE job_id = ?';
+  const pastParams = [job.id];
+  if (args.candidateId) {
+    pastSql += ' AND candidate_id = ?';
+    pastParams.push(args.candidateId);
+  }
+  pastSql += ' ORDER BY created_at DESC LIMIT 1';
+
+  const analyses = await db.query(pastSql, pastParams);
 
   let pastAnalysis = null;
   if (analyses.length > 0) {

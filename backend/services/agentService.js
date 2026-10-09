@@ -8,14 +8,15 @@ const { getToolDefinitions, executeTool } = require('../tools');
 const { callLLM } = require('./llmService');
 
 const SYSTEM_PROMPT = `You are CareerPilot, an autonomous AI career agent and interview preparation advisor.
-Your objective is to assist the candidate in evaluating career opportunities, calculating realistic skill matches, identifying skill gaps, and generating targeted interview preparation questions.
+Your objective is to assist the candidate in evaluating career opportunities, calculating realistic skill matches, discovering live external job openings, identifying skill gaps, and generating targeted interview preparation questions.
 
 Rules:
-1. Always use the available backend tools to retrieve real candidate data, saved jobs, and historical records.
+1. Always use the available backend tools to retrieve real candidate data, saved jobs, live external listings, and historical records.
 2. NEVER invent job listings, candidate skills, or match percentages without calling tools.
-3. When asked to evaluate saved jobs, retrieve the candidate profile and saved jobs first, calculate the match score, and if requested, generate interview questions.
-4. Save important analyses to the database using the saveJobAnalysis tool.
-5. Provide clear, professional, constructive answers formatted in GitHub-flavored Markdown.`;
+3. When asked to find new jobs or explore opportunities, execute searchLiveJobs.
+4. When asked to evaluate saved jobs, retrieve candidate profile and saved jobs first, calculate the match score, and if requested, generate interview questions.
+5. Save important analyses to the database using the saveJobAnalysis tool.
+6. Provide clear, professional, constructive answers formatted in GitHub-flavored Markdown.`;
 
 /**
  * Generate human-readable, safe summary for frontend activity timeline
@@ -38,6 +39,8 @@ function createActivitySummary(toolName, result) {
       return `Generated tailored technical, behavioral, and gap interview questions for "${result?.jobTitle}"`;
     case 'getApplicationHistory':
       return `Retrieved application tracking history (${result?.totalApplications || 0} applications, ${result?.totalAnalyses || 0} analyses)`;
+    case 'searchLiveJobs':
+      return `Discovered ${result?.totalFound || 0} live job postings across external providers for "${result?.query?.keyword || 'software'}"`;
     default:
       return `Executed backend tool: ${toolName}`;
   }
@@ -50,19 +53,31 @@ function createActivitySummary(toolName, result) {
  * @param {number} userId - The user ID (default 1)
  * @param {number} candidateId - The candidate profile ID (default 1)
  */
-async function runAgent(userRequest, userId = 1, candidateId = 1) {
+async function runAgent(userRequest, userId = null, candidateId = null) {
   if (!userRequest || typeof userRequest !== 'string' || userRequest.trim() === '') {
     throw new Error('User request cannot be empty.');
   }
 
   const startTime = Date.now();
 
-  // Safely resolve userId if valid in users table (allows guest runs before onboarding)
+  // Safely resolve userId if valid in users table
   let validUserId = null;
   if (userId) {
     const userCheck = await db.query('SELECT id FROM users WHERE id = ?', [userId]);
     if (userCheck && userCheck.length > 0) {
       validUserId = userId;
+    }
+  }
+
+  // Resolve candidateId for this user to guarantee isolation
+  let activeCandidateId = candidateId;
+  if (!activeCandidateId && validUserId) {
+    const cpRows = await db.query(
+      'SELECT id FROM candidate_profiles WHERE user_id = ? AND (is_legacy = FALSE OR is_legacy IS NULL) ORDER BY id DESC LIMIT 1',
+      [validUserId]
+    );
+    if (cpRows && cpRows.length > 0) {
+      activeCandidateId = cpRows[0].id;
     }
   }
 
@@ -120,9 +135,12 @@ async function runAgent(userRequest, userId = 1, candidateId = 1) {
             toolArgs = {};
           }
 
-          // Inject candidateId if not provided
-          if (!toolArgs.candidateId) {
-            toolArgs.candidateId = candidateId;
+          // Inject candidateId and userId to enforce server-side ownership context
+          if (activeCandidateId) {
+            toolArgs.candidateId = activeCandidateId;
+          }
+          if (validUserId) {
+            toolArgs.userId = validUserId;
           }
 
           // Execute tool securely
@@ -225,26 +243,37 @@ async function runAgent(userRequest, userId = 1, candidateId = 1) {
 }
 
 /**
- * Retrieve recent agent runs
+ * Retrieve recent agent runs for authenticated user
  */
-async function getAgentRuns(limit = 20) {
-  const rows = await db.query(
-    `SELECT ar.id, ar.user_id, ar.user_request, ar.status, ar.total_iterations, 
+async function getAgentRuns(userId = null, limit = 20) {
+  let sql = `SELECT ar.id, ar.user_id, ar.user_request, ar.status, ar.total_iterations,
             ar.duration_ms, ar.created_at, ar.completed_at,
             (SELECT COUNT(*) FROM agent_tool_calls atc WHERE atc.run_id = ar.id) AS tool_call_count
-     FROM agent_runs ar
-     ORDER BY ar.created_at DESC
-     LIMIT ?`,
-    [limit]
-  );
+     FROM agent_runs ar`;
+  const params = [];
+  if (userId) {
+    sql += ` WHERE ar.user_id = ?`;
+    params.push(userId);
+  }
+  sql += ` ORDER BY ar.created_at DESC LIMIT ?`;
+  params.push(limit);
+
+  const rows = await db.query(sql, params);
   return rows;
 }
 
 /**
- * Retrieve single agent run with all tool calls
+ * Retrieve single agent run with all tool calls scoped to user
  */
-async function getAgentRunById(runId) {
-  const runRows = await db.query('SELECT * FROM agent_runs WHERE id = ?', [runId]);
+async function getAgentRunById(runId, userId = null) {
+  let sql = 'SELECT * FROM agent_runs WHERE id = ?';
+  const params = [runId];
+  if (userId) {
+    sql += ' AND user_id = ?';
+    params.push(userId);
+  }
+
+  const runRows = await db.query(sql, params);
   if (!runRows || runRows.length === 0) {
     return null;
   }

@@ -7,9 +7,14 @@
     "start": "node backend/server.js",
     "dev": "nodemon backend/server.js",
     "db:init": "node database/initDb.js",
+    "db:migrate": "node database/migrate.js",
+    "db:migrate:preview": "node database/preview_migration.js",
     "db:seed": "node database/seedDb.js",
     "db:reset": "node database/initDb.js",
-    "test": "node backend/test/runTests.js"
+    "test": "node backend/test/runTests.js",
+    "test:migration": "node backend/test/test_phase1_migration.js",
+    "test:auth": "node backend/test/test_phase2_auth.js",
+    "test:full": "node backend/test/test_full_suite.js"
   },
   "keywords": [
     "ai-agent",

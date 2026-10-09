@@ -1,29 +1,38 @@
 /**
  * Analysis, Applications, and Dashboard Stats Controller
+ * Enforces per-user ownership and unconditionally disables demo/reset in production.
  */
 
 const db = require('../config/db');
 const { seedDatabase } = require('../../database/seedDb');
 const { initDatabase } = require('../../database/initDb');
 
+async function getCandidateIdForUser(userId) {
+  const rows = await db.query(
+    'SELECT id FROM candidate_profiles WHERE user_id = ? AND (is_legacy = FALSE OR is_legacy IS NULL) ORDER BY id DESC LIMIT 1',
+    [userId]
+  );
+  return rows.length > 0 ? rows[0].id : null;
+}
+
 async function getAnalyses(req, res, next) {
   try {
-    const candidateId = req.query.candidateId ? parseInt(req.query.candidateId, 10) : null;
-    let sql = `
+    const candidateId = await getCandidateIdForUser(req.user.id);
+    if (!candidateId) {
+      return res.json({ success: true, count: 0, analyses: [] });
+    }
+
+    const sql = `
       SELECT ja.id, ja.job_id, ja.candidate_id, ja.match_score, ja.matched_skills, 
              ja.missing_skills, ja.recommendations, ja.interview_readiness, ja.created_at,
              j.title AS job_title, j.company, j.location
       FROM job_analyses ja
       JOIN jobs j ON ja.job_id = j.id
+      WHERE ja.candidate_id = ?
+      ORDER BY ja.created_at DESC
     `;
-    const params = [];
-    if (candidateId) {
-      sql += ' WHERE ja.candidate_id = ?';
-      params.push(candidateId);
-    }
-    sql += ' ORDER BY ja.created_at DESC';
 
-    const rows = await db.query(sql, params);
+    const rows = await db.query(sql, [candidateId]);
 
     return res.json({
       success: true,
@@ -51,16 +60,18 @@ async function getAnalyses(req, res, next) {
 async function getAnalysisById(req, res, next) {
   try {
     const id = parseInt(req.params.id, 10);
+    const candidateId = await getCandidateIdForUser(req.user.id);
+
     const rows = await db.query(
       `SELECT ja.*, j.title AS job_title, j.company, j.location, j.description, j.experience_required
        FROM job_analyses ja
        JOIN jobs j ON ja.job_id = j.id
-       WHERE ja.id = ?`,
-      [id]
+       WHERE ja.id = ? AND ja.candidate_id = ?`,
+      [id, candidateId || 0]
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ success: false, error: `Analysis #${id} not found.` });
+      return res.status(404).json({ success: false, error: `Analysis #${id} not found or access denied.` });
     }
 
     const r = rows[0];
@@ -90,21 +101,21 @@ async function getAnalysisById(req, res, next) {
 
 async function getApplications(req, res, next) {
   try {
-    const candidateId = req.query.candidateId ? parseInt(req.query.candidateId, 10) : null;
-    let sql = `
+    const candidateId = await getCandidateIdForUser(req.user.id);
+    if (!candidateId) {
+      return res.json({ success: true, count: 0, applications: [] });
+    }
+
+    const sql = `
       SELECT a.id, a.job_id, a.candidate_id, a.status, a.applied_date, a.notes, a.created_at,
              j.title AS job_title, j.company, j.location, j.work_mode
       FROM applications a
       JOIN jobs j ON a.job_id = j.id
+      WHERE a.candidate_id = ?
+      ORDER BY a.created_at DESC
     `;
-    const params = [];
-    if (candidateId) {
-      sql += ' WHERE a.candidate_id = ?';
-      params.push(candidateId);
-    }
-    sql += ' ORDER BY a.created_at DESC';
 
-    const rows = await db.query(sql, params);
+    const rows = await db.query(sql, [candidateId]);
 
     return res.json({
       success: true,
@@ -130,26 +141,36 @@ async function getApplications(req, res, next) {
 
 async function getStats(req, res, next) {
   try {
-    // 1. Total Saved Jobs
-    const jobsRows = await db.query('SELECT COUNT(*) AS count FROM jobs');
+    const userId = req.user.id;
+    const candidateId = await getCandidateIdForUser(userId);
+
+    // 1. Total Saved Jobs for authenticated user
+    const jobsRows = await db.query('SELECT COUNT(*) AS count FROM jobs WHERE user_id = ? OR user_id IS NULL', [userId]);
     const jobsCount = jobsRows[0] ? jobsRows[0].count : 0;
 
-    // 2. Analyzed Jobs
-    const analyzedRows = await db.query('SELECT COUNT(DISTINCT job_id) AS count, AVG(match_score) AS avg_score FROM job_analyses');
-    const analyzedCount = analyzedRows[0] ? analyzedRows[0].count : 0;
-    const avgScore = analyzedRows[0] && analyzedRows[0].avg_score ? Math.round(parseFloat(analyzedRows[0].avg_score)) : 0;
+    // 2. Analyzed Jobs for authenticated user's candidate profile
+    let analyzedCount = 0;
+    let avgScore = 0;
+    if (candidateId) {
+      const analyzedRows = await db.query(
+        'SELECT COUNT(DISTINCT job_id) AS count, AVG(match_score) AS avg_score FROM job_analyses WHERE candidate_id = ?',
+        [candidateId]
+      );
+      analyzedCount = analyzedRows[0] ? analyzedRows[0].count : 0;
+      avgScore = analyzedRows[0] && analyzedRows[0].avg_score ? Math.round(parseFloat(analyzedRows[0].avg_score)) : 0;
+    }
 
-    // 3. Agent Runs
-    const runsRows = await db.query('SELECT COUNT(*) AS count FROM agent_runs');
+    // 3. Agent Runs for authenticated user
+    const runsRows = await db.query('SELECT COUNT(*) AS count FROM agent_runs WHERE user_id = ?', [userId]);
     const runsCount = runsRows[0] ? runsRows[0].count : 0;
 
-    // 4. Candidate count
-    const profileRows = await db.query('SELECT COUNT(*) AS count FROM candidate_profiles');
-    const hasProfile = profileRows[0] ? profileRows[0].count > 0 : false;
+    // 4. Candidate profile status
+    const hasProfile = candidateId !== null;
 
-    // 5. Recent Agent Activity
+    // 5. Recent Agent Activity for authenticated user
     const recentRuns = await db.query(
-      'SELECT id, user_request, status, total_iterations, duration_ms, created_at FROM agent_runs ORDER BY created_at DESC LIMIT 5'
+      'SELECT id, user_request, status, total_iterations, duration_ms, created_at FROM agent_runs WHERE user_id = ? ORDER BY created_at DESC LIMIT 5',
+      [userId]
     );
 
     return res.json({
@@ -169,10 +190,18 @@ async function getStats(req, res, next) {
 }
 
 /**
- * Explicit demo seed endpoint for technical interview testing
+ * Demo seed endpoint
+ * Unconditionally disabled in production.
  */
 async function seedDemoData(req, res, next) {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({
+        success: false,
+        error: 'Database administration endpoints are disabled in production. Run database commands via server CLI.'
+      });
+    }
+
     await seedDatabase();
     return res.json({
       success: true,
@@ -185,9 +214,17 @@ async function seedDemoData(req, res, next) {
 
 /**
  * Reset database to fresh empty state
+ * Unconditionally disabled in production.
  */
 async function resetDatabase(req, res, next) {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({
+        success: false,
+        error: 'Database administration endpoints are disabled in production. Run database commands via server CLI.'
+      });
+    }
+
     await initDatabase();
     return res.json({
       success: true,

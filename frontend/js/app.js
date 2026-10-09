@@ -1,6 +1,6 @@
 /**
  * CareerPilot — Main Application Controller
- * Coordinates API calls, tab switching, event listeners, and data lifecycle.
+ * Coordinates API calls, tab switching, event listeners, auth state, and data lifecycle.
  */
 
 const App = {
@@ -38,6 +38,48 @@ const App = {
     const onboardBtn = document.getElementById('btn-start-onboarding');
     if (onboardBtn) {
       onboardBtn.addEventListener('click', () => UI.switchTab('profile'));
+    }
+
+    // Auth Buttons & Form Controls
+    const openAuthBtn = document.getElementById('btn-open-auth-modal');
+    if (openAuthBtn) {
+      openAuthBtn.addEventListener('click', () => UI.openAuthModal('login'));
+    }
+
+    const closeAuthBtn = document.getElementById('btn-close-auth-modal');
+    if (closeAuthBtn) {
+      closeAuthBtn.addEventListener('click', () => UI.closeAuthModal());
+    }
+
+    const tabAuthLogin = document.getElementById('tab-auth-login');
+    if (tabAuthLogin) {
+      tabAuthLogin.addEventListener('click', () => UI.switchAuthTab('login'));
+    }
+
+    const tabAuthRegister = document.getElementById('tab-auth-register');
+    if (tabAuthRegister) {
+      tabAuthRegister.addEventListener('click', () => UI.switchAuthTab('register'));
+    }
+
+    const loginForm = document.getElementById('form-login');
+    if (loginForm) {
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await this.handleLogin();
+      });
+    }
+
+    const registerForm = document.getElementById('form-register');
+    if (registerForm) {
+      registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await this.handleRegister();
+      });
+    }
+
+    const logoutBtn = document.getElementById('btn-logout');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => this.handleLogout());
     }
 
     // Quick Add Job
@@ -85,6 +127,24 @@ const App = {
       statusFilter.addEventListener('change', () => this.filterJobs());
     }
 
+    // Live Job Search
+    const searchLiveBtn = document.getElementById('btn-search-live-jobs');
+    if (searchLiveBtn) {
+      searchLiveBtn.addEventListener('click', () => this.handleSearchLiveJobs());
+    }
+    const liveKeywordInput = document.getElementById('live-search-keyword');
+    const liveLocationInput = document.getElementById('live-search-location');
+    [liveKeywordInput, liveLocationInput].forEach(inp => {
+      if (inp) {
+        inp.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            this.handleSearchLiveJobs();
+          }
+        });
+      }
+    });
+
     // Interview Prep Job Select Dropdown
     const prepSelect = document.getElementById('interview-job-select');
     if (prepSelect) {
@@ -119,26 +179,49 @@ const App = {
       if (modeEl) modeEl.textContent = `Provider: ${health.aiProvider.toUpperCase()}`;
       if (tagEl) tagEl.textContent = `Provider: ${health.aiProvider.toUpperCase()}`;
 
-      // 2. Load active candidate profile
-      const profileRes = await API.getProfile();
-      UI.updateHeaderProfile(profileRes.profile);
-      UI.renderProfileView(profileRes.profile);
+      // 2. Auth check
+      let currentUser = null;
+      try {
+        const userRes = await API.getCurrentUser();
+        currentUser = userRes.user;
+      } catch (err) {
+        currentUser = null;
+      }
+      UI.updateAuthUI(currentUser);
 
-      // 3. Load stats & recent runs
+      // 3. Load active candidate profile
+      try {
+        const profileRes = await API.getProfile();
+        UI.updateHeaderProfile(profileRes.profile);
+        UI.renderProfileView(profileRes.profile);
+      } catch (err) {
+        UI.updateHeaderProfile(null);
+        UI.renderProfileView(null);
+      }
+
+      // 4. Load stats & recent runs
       const statsRes = await API.getStats();
       UI.renderDashboard(statsRes.stats, statsRes.stats.recentRuns);
 
-      // 4. Load jobs
+      // 5. Load jobs
       const jobsRes = await API.getJobs();
       UI.renderJobs(jobsRes.jobs);
 
-      // 5. Load analyses
+      // 6. Load analyses
       const analysesRes = await API.getAnalyses();
       UI.renderAnalyses(analysesRes.analyses);
 
-      // 6. Load agent runs
+      // 7. Load agent runs
       const runsRes = await API.getAgentRuns();
       UI.renderAgentHistory(runsRes.runs);
+
+      // 8. Load live job providers
+      try {
+        const provRes = await API.getJobProviders();
+        UI.renderLiveJobProviders(provRes.providers);
+      } catch (provErr) {
+        console.warn('Live job providers status unavailable:', provErr.message);
+      }
     } catch (err) {
       console.error('Failed to load application data:', err);
       UI.showToast(`Data load issue: ${err.message}`, 'error');
@@ -160,6 +243,48 @@ const App = {
       UI.renderAgentHistory(runsRes.runs);
     } catch (err) {
       console.warn('Silent refresh issue:', err.message);
+    }
+  },
+
+  async handleLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    try {
+      UI.clearAuthError();
+      const res = await API.login(email, password);
+      UI.showToast(`Welcome back, ${res.user.name}!`, 'success');
+      UI.closeAuthModal();
+      document.getElementById('form-login').reset();
+      await this.refreshApp();
+    } catch (err) {
+      UI.setAuthError(err.message);
+    }
+  },
+
+  async handleRegister() {
+    const name = document.getElementById('register-name').value.trim();
+    const email = document.getElementById('reg-email') ? document.getElementById('reg-email').value.trim() : document.getElementById('register-email').value.trim();
+    const password = document.getElementById('register-password').value;
+    try {
+      UI.clearAuthError();
+      const res = await API.register(name, email, password);
+      UI.showToast(`Account created for ${res.user.name}!`, 'success');
+      UI.closeAuthModal();
+      document.getElementById('form-register').reset();
+      await this.refreshApp();
+      UI.switchTab('profile');
+    } catch (err) {
+      UI.setAuthError(err.message);
+    }
+  },
+
+  async handleLogout() {
+    try {
+      await API.logout();
+      UI.showToast('Logged out successfully.', 'info');
+      await this.refreshApp();
+    } catch (err) {
+      UI.showToast(err.message, 'error');
     }
   },
 
@@ -206,6 +331,11 @@ const App = {
     }
   },
 
+  // Aliases for UI calls
+  deleteJob(jobId) {
+    return this.handleDeleteJob(jobId);
+  },
+
   async filterJobs() {
     const keyword = document.getElementById('jobs-search-input').value;
     const status = document.getElementById('jobs-status-filter').value;
@@ -227,6 +357,17 @@ const App = {
     } catch (err) {
       UI.showToast(err.message, 'error');
     }
+  },
+
+  analyzeJob(jobId) {
+    return this.triggerJobAnalysis(jobId);
+  },
+
+  prepareInterviewForJob(jobId) {
+    UI.switchTab('interviews');
+    const select = document.getElementById('interview-job-select');
+    if (select) select.value = jobId;
+    return this.loadInterviewPrepForJob(jobId);
   },
 
   triggerInterviewPrepForJob(jobId, jobTitle) {
@@ -288,6 +429,50 @@ const App = {
       UI.renderInterviewPrep(prepData);
     } catch (err) {
       UI.showToast(err.message, 'error');
+    }
+  },
+
+  // Live Job Search Handler
+  async handleSearchLiveJobs() {
+    const keyword = document.getElementById('live-search-keyword')?.value.trim() || '';
+    const location = document.getElementById('live-search-location')?.value.trim() || '';
+    const remoteOnly = document.getElementById('live-search-remote')?.checked || false;
+    const provider = document.getElementById('live-search-provider')?.value || 'all';
+
+    const searchBtn = document.getElementById('btn-search-live-jobs');
+    if (searchBtn) {
+      searchBtn.disabled = true;
+      searchBtn.innerHTML = '<span class="spinner-small" style="margin-right:6px;"></span> Searching...';
+    }
+
+    try {
+      UI.showToast('Discovering live openings across connected career boards...', 'info');
+      const res = await API.searchLiveJobs({ keyword, location, remoteOnly, provider });
+      UI.renderLiveJobs(res);
+      const count = res.count || (res.jobs ? res.jobs.length : 0);
+      UI.showToast(`Discovered ${count} live opportunities!`, 'success');
+    } catch (err) {
+      UI.showToast(`Job search error: ${err.message}`, 'error');
+    } finally {
+      if (searchBtn) {
+        searchBtn.disabled = false;
+        searchBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Search Live Jobs';
+      }
+    }
+  },
+
+  // Save Discovered External Job to Repository
+  async handleSaveExternalJob(jobData) {
+    try {
+      UI.showToast(`Saving "${jobData.title}" to your jobs board...`, 'info');
+      await API.saveExternalJob(jobData);
+      UI.showToast(`"${jobData.title}" saved to repository!`, 'success');
+      const jobsRes = await API.getJobs();
+      UI.renderJobs(jobsRes.jobs);
+      const statsRes = await API.getStats();
+      UI.renderDashboard(statsRes.stats, statsRes.stats.recentRuns);
+    } catch (err) {
+      UI.showToast(`Failed to save job: ${err.message}`, 'error');
     }
   },
 

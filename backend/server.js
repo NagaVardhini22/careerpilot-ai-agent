@@ -13,6 +13,8 @@ const profileRoutes = require('./routes/profileRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const agentRoutes = require('./routes/agentRoutes');
 const analysisRoutes = require('./routes/analysisRoutes');
+const authRoutes = require('./routes/authRoutes');
+const { cookieParserMiddleware, authenticateToken } = require('./middleware/authMiddleware');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -21,6 +23,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParserMiddleware);
+app.use(authenticateToken);
 
 // Serve Frontend Static Assets
 app.use(express.static(path.join(__dirname, '../frontend')));
@@ -38,6 +42,7 @@ app.get('/api/health', async (req, res) => {
 });
 
 // REST API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/agent', agentRoutes);
@@ -73,6 +78,8 @@ async function startServer() {
   });
 }
 
-startServer();
+if (require.main === module) {
+  startServer();
+}
 
 module.exports = app;

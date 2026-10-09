@@ -81,7 +81,7 @@ const Agent = {
 
     try {
       // API call to Express agent orchestrator
-      const res = await API.runAgent(prompt, 1, candidateId);
+      const res = await API.runAgent(prompt, candidateId);
 
       // Render step-by-step activity stepper with animated intervals
       const activities = res.activities || [];

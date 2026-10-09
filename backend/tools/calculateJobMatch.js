@@ -51,18 +51,23 @@ async function calculateJobMatch(args = {}) {
     [candidateId]
   );
 
+  const candidateRecordedSkills = [];
   const candidateSkillMap = new Map();
   candidateSkillsRows.forEach(row => {
-    candidateSkillMap.set(row.name.toLowerCase().trim(), {
+    const yearsVal = row.years_of_experience !== null ? parseFloat(row.years_of_experience) : null;
+    const item = {
       name: row.name,
-      proficiency: row.proficiency_level,
-      years: parseFloat(row.years_of_experience)
-    });
+      proficiency: row.proficiency_level || 'Not specified',
+      years: yearsVal
+    };
+    candidateSkillMap.set(row.name.toLowerCase().trim(), item);
+    candidateRecordedSkills.push(item);
   });
 
-  // 3. Match Evaluation
+  // 3. Match Evaluation & Separate Categories
   const matchedSkills = [];
   const missingSkills = [];
+  const unverifiedSkills = [];
   let proficiencyPoints = 0;
 
   requiredSkills.forEach(reqSkill => {
@@ -70,10 +75,19 @@ async function calculateJobMatch(args = {}) {
     if (candidateSkillMap.has(key)) {
       const cand = candidateSkillMap.get(key);
       matchedSkills.push(cand.name);
-      if (cand.proficiency === 'Expert') proficiencyPoints += 1.0;
-      else if (cand.proficiency === 'Advanced') proficiencyPoints += 0.9;
-      else if (cand.proficiency === 'Intermediate') proficiencyPoints += 0.75;
-      else proficiencyPoints += 0.5;
+      if (cand.proficiency === 'Expert') {
+        proficiencyPoints += 1.0;
+      } else if (cand.proficiency === 'Advanced') {
+        proficiencyPoints += 0.85;
+      } else if (cand.proficiency === 'Intermediate') {
+        proficiencyPoints += 0.70;
+      } else if (cand.proficiency === 'Beginner') {
+        proficiencyPoints += 0.45;
+      } else {
+        // 'Not specified' - partial credit without claiming verified expertise
+        proficiencyPoints += 0.35;
+        unverifiedSkills.push(cand.name);
+      }
     } else {
       missingSkills.push(reqSkill);
     }
@@ -91,22 +105,41 @@ async function calculateJobMatch(args = {}) {
   matchScore = Math.min(100, Math.max(10, matchScore));
 
   let interviewReadiness = 'Low';
-  if (matchScore >= 85) interviewReadiness = 'High';
-  else if (matchScore >= 65) interviewReadiness = 'Moderate';
+  if (matchScore >= 80) interviewReadiness = 'High';
+  else if (matchScore >= 60) interviewReadiness = 'Moderate';
 
   const keyStrengths = matchedSkills.map(skill => {
     const info = candidateSkillMap.get(skill.toLowerCase());
-    return `${skill} (${info ? info.proficiency : 'Proficient'}, ${info ? info.years : 1}+ yrs)`;
+    const prof = info && info.proficiency !== 'Not specified' ? info.proficiency : 'Recorded';
+    const yrsStr = info && info.years !== null ? `, ${info.years} yrs` : '';
+    return `${skill} (${prof}${yrsStr})`;
   });
+
+  // Recommended learning skills (kept strictly separate from candidate profile)
+  const recommendedLearningSkills = missingSkills.map(skill => ({
+    skill,
+    importance: 'Required by role',
+    action: `Recommended learning topic for ${job.title}. Must be confirmed by candidate before adding to profile.`
+  }));
+
+  let matchExplanation = '';
+  if (requiredSkills.length > 0) {
+    matchExplanation = `Compatibility: ${matchedSkills.length} of ${requiredSkills.length} core job skills matched.`;
+    if (unverifiedSkills.length > 0) {
+      matchExplanation += ` Unverified proficiency noted on: ${unverifiedSkills.join(', ')}.`;
+    }
+  } else {
+    matchExplanation = 'General match calculated; listing did not specify mandatory core skills.';
+  }
 
   const recommendations = [];
   if (missingSkills.length > 0) {
-    recommendations.push(`Familiarize yourself with core concepts of: ${missingSkills.join(', ')}.`);
-    recommendations.push(`Prepare to speak to transferable skills from ${matchedSkills.slice(0, 2).join(' & ') || 'prior experience'} to bridge the gap with ${missingSkills[0]}.`);
+    recommendations.push(`Skill development priorities: ${missingSkills.join(', ')}.`);
+    recommendations.push(`Highlight related experience in ${matchedSkills.slice(0, 2).join(' & ') || 'prior projects'} to address missing requirements.`);
   } else {
-    recommendations.push(`Strong direct match! Emphasize leadership and deep architectural proficiency in ${matchedSkills.slice(0, 3).join(', ')}.`);
+    recommendations.push(`High alignment with job specification! Focus on architectural decisions in ${matchedSkills.slice(0, 3).join(', ')}.`);
   }
-  recommendations.push(`Review key architectural patterns for ${job.title} roles at ${job.company}.`);
+  recommendations.push(`Review core engineering expectations for ${job.title} at ${job.company}.`);
 
   return {
     jobId: job.id,
@@ -114,11 +147,15 @@ async function calculateJobMatch(args = {}) {
     company: job.company,
     candidateId,
     matchScore,
+    matchExplanation,
     interviewReadiness,
+    candidateRecordedSkillsCount: candidateRecordedSkills.length,
     requiredSkillsCount: requiredSkills.length,
     matchedSkillsCount: matchedSkills.length,
     matchedSkills,
     missingSkills,
+    unverifiedSkills,
+    recommendedLearningSkills,
     keyStrengths,
     recommendations
   };

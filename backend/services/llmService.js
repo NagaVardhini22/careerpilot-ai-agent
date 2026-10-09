@@ -196,7 +196,61 @@ Please click **"Profile"** in the sidebar to create your profile and add your te
     };
   }
 
-  // 2. Check for application history intent
+  // 2. Check for live external job discovery intent
+  const isLiveSearchReq = userText.includes('live') || userText.includes('search') || userText.includes('external') || userText.includes('openings') || (userText.includes('find') && (userText.includes('job') || userText.includes('role') || userText.includes('developer') || userText.includes('engineer')));
+  if (isLiveSearchReq && !userText.includes('saved')) {
+    if (!executedNames.has('searchLiveJobs')) {
+      let keyword = 'Software Engineer';
+      if (userText.includes('python')) keyword = 'Python';
+      else if (userText.includes('react')) keyword = 'React';
+      else if (userText.includes('frontend')) keyword = 'Frontend';
+      else if (userText.includes('backend')) keyword = 'Backend';
+      else if (userText.includes('devops')) keyword = 'DevOps';
+      else if (userText.includes('entry') || userText.includes('junior')) keyword = 'Junior Developer';
+
+      let location = 'India';
+      if (userText.includes('remote')) location = 'Remote';
+      else if (userText.includes('bangalore')) location = 'Bangalore';
+      else if (userText.includes('hyderabad')) location = 'Hyderabad';
+
+      const remoteOnly = userText.includes('remote');
+      const experienceLevel = userText.includes('entry') ? 'Entry-level' : '';
+
+      return {
+        tool_calls: [{
+          id: `call_${Date.now()}_searchLive`,
+          type: 'function',
+          function: {
+            name: 'searchLiveJobs',
+            arguments: JSON.stringify({ keyword, location, remoteOnly, experienceLevel })
+          }
+        }]
+      };
+    }
+
+    const liveTool = executedTools.find(t => t.name === 'searchLiveJobs');
+    const liveData = liveTool ? liveTool.data : {};
+    const sampleJobs = liveData.sampleJobs || [];
+    const extLinks = liveData.externalSearchLinks || [];
+
+    return {
+      content: `### 🌐 Live Job Discovery Results
+
+I searched active career portals and public company boards for **"${liveData.query?.keyword || 'Developer'}"** (Location: \`${liveData.query?.location || 'Any'}\`).
+
+#### Discovered Postings (${liveData.totalFound} found):
+${sampleJobs.length > 0 ? sampleJobs.map((j, idx) => `${idx + 1}. **[${j.title}](${j.url || '#'})** at **${j.company}** (\`${j.workMode}\` - ${j.location})\n   - Core Skills: ${j.skills && j.skills.length > 0 ? j.skills.join(', ') : 'General tech'}\n   - Source: *${j.source}*`).join('\n\n') : '_No active listings matched the exact query on configured public boards. Explore the verified direct search links below._'}
+
+#### Direct Official Portal Searches:
+${extLinks.map(l => `- **[${l.title}](${l.url})** (${l.portal}) — ${l.description}`).join('\n')}
+
+💡 *Tip: Navigate to the **Live Job Search** tab in CareerPilot to view all listings, filter by work mode, and save openings directly to your Board for personalized preparation!*
+
+*(Note: Executed using CareerPilot Offline Deterministic Agent Planner with function calling)*`
+    };
+  }
+
+  // 3. Check for application history intent
   const isHistoryReq = userText.includes('history') || userText.includes('previous') || userText.includes('analyses') || userText.includes('past') || userText.includes('application');
   if (isHistoryReq) {
     if (!executedNames.has('getApplicationHistory')) {
@@ -234,11 +288,13 @@ ${apps.length > 0 ? apps.map(a => `- **${a.jobTitle}** at **${a.company}** — S
 #### Prior Job Analyses (${analyses.length}):
 ${analyses.length > 0 ? analyses.map(an => `- **${an.jobTitle}** (${an.company}) — Match Score: **${an.matchScore}%** | Readiness: \`${an.interviewReadiness}\``).join('\n') : '_No saved analyses recorded._'}
 
-You can ask me to re-analyze any role or generate targeted interview prep questions!`
+You can ask me to re-analyze any role or generate targeted interview prep questions!
+
+*(Generated using CareerPilot Deterministic Agent Planner)*`
     };
   }
 
-  // 3. Saved Jobs Retrieval
+  // 4. Saved Jobs Retrieval
   if (!executedNames.has('getSavedJobs') && !executedNames.has('getJobDetails')) {
     const isJsFilter = userText.includes('javascript') || userText.includes('js');
     const filter = isJsFilter ? { status: 'saved', keyword: 'JavaScript' } : { status: 'saved', limit: 10 };
@@ -265,9 +321,10 @@ You can ask me to re-analyze any role or generate targeted interview prep questi
 I retrieved your profile successfully, but found **no saved jobs** in your repository.
 
 To get started:
-1. Navigate to the **Jobs Board** tab and click **"Add New Job"**.
-2. Or ask me about an application by saving jobs to your database.
-Once a job is saved, I will analyze its requirements and compute your compatibility!`
+1. Navigate to the **Jobs Board** tab and click **"Add New Job"**, or use **Live Job Search** to discover real openings.
+2. Ask me about any saved opening once added to your database!
+
+*(Generated using CareerPilot Deterministic Agent Planner)*`
     };
   }
 
@@ -275,7 +332,7 @@ Once a job is saved, I will analyze its requirements and compute your compatibil
   const specificJobMatch = userText.match(/job\s+(\d+)/i) || userText.match(/job\s+id\s+(\d+)/i);
   let targetJobId = specificJobMatch ? parseInt(specificJobMatch[1], 10) : (jobsList[0]?.id || 1);
 
-  // 4. Calculate Job Match
+  // 5. Calculate Job Match
   if (!executedNames.has('calculateJobMatch')) {
     return {
       tool_calls: [{
@@ -292,7 +349,7 @@ Once a job is saved, I will analyze its requirements and compute your compatibil
   const matchTool = executedTools.find(t => t.name === 'calculateJobMatch');
   const matchData = matchTool ? matchTool.data : {};
 
-  // 5. Generate Interview Questions if requested or if looking for comprehensive prep
+  // 6. Generate Interview Questions if requested or if looking for comprehensive prep
   const isInterviewPrepReq = userText.includes('interview') || userText.includes('question') || userText.includes('prep') || userText.includes('prepare');
   if (isInterviewPrepReq && !executedNames.has('generateInterviewQuestions')) {
     return {
@@ -307,7 +364,7 @@ Once a job is saved, I will analyze its requirements and compute your compatibil
     };
   }
 
-  // 6. Save Job Analysis
+  // 7. Save Job Analysis
   if (!executedNames.has('saveJobAnalysis') && matchData && matchData.matchScore !== undefined) {
     return {
       tool_calls: [{
@@ -330,20 +387,25 @@ Once a job is saved, I will analyze its requirements and compute your compatibil
     };
   }
 
-  // 7. Final Response Synthesis using Real Data
+  // 8. Final Response Synthesis using Real Data
   const interviewTool = executedTools.find(t => t.name === 'generateInterviewQuestions');
   const interview = interviewTool ? interviewTool.data : null;
 
   let responseMarkdown = `### 🎯 Career Compatibility Evaluation
 
-Hello **${profile.name}**, here is the comprehensive evaluation of your profile (${profile.experienceYears} years of experience) against **${matchData.jobTitle || 'Target Role'}** at **${matchData.company || 'Company'}**:
+Hello **${profile.name}**, here is the comprehensive evaluation of your profile against **${matchData.jobTitle || 'Target Role'}** at **${matchData.company || 'Company'}**:
 
 #### 📊 Match Assessment: **${matchData.matchScore}% Match** (\`${matchData.interviewReadiness} Readiness\`)
+*${matchData.matchExplanation || 'Calculated based on verified candidate skills against job requirements.'}*
 
 - **Matched Skills (${matchData.matchedSkillsCount || matchData.matchedSkills?.length || 0})**: ${matchData.matchedSkills?.map(s => `\`${s}\``).join(', ') || 'None identified'}
-- **Missing / Gap Skills**: ${matchData.missingSkills?.length > 0 ? matchData.missingSkills.map(s => `\`${s}\``).join(', ') : '✨ None! You satisfy all explicit core requirements.'}
+- **Missing Requirements (${matchData.missingSkills?.length || 0})**: ${matchData.missingSkills?.length > 0 ? matchData.missingSkills.map(s => `\`${s}\``).join(', ') : '✨ None! You satisfy all explicit core requirements.'}
 
-#### 💡 Strategic Recommendations:
+#### 📚 Recommended Learning Skills (Gap Priorities):
+${matchData.recommendedLearningSkills && matchData.recommendedLearningSkills.length > 0 ? matchData.recommendedLearningSkills.map(s => `- **${s.skill}**: ${s.action}`).join('\n') : '- No immediate skill gaps detected for this role.'}
+*(Note: Recommended skills are suggestions only and will never be added to your profile without your explicit action.)*
+
+#### 💡 Strategic Preparation Advice:
 ${matchData.recommendations?.map(r => `- ${r}`).join('\n') || '- Align your project examples with the core responsibilities.'}
 `;
 
@@ -361,7 +423,7 @@ ${interview.candidateTips?.map(t => `- ${t}`).join('\n')}
 `;
   }
 
-  responseMarkdown += `\n*Note: This evaluation has been saved to your MySQL database for future tracking.*`;
+  responseMarkdown += `\n*Evaluation audit saved to database. Generated by CareerPilot Deterministic Agent Planner with tool execution.*`;
 
   return { content: responseMarkdown };
 }

@@ -11,6 +11,7 @@ const calculateJobMatch = require('./calculateJobMatch');
 const saveJobAnalysis = require('./saveJobAnalysis');
 const generateInterviewQuestions = require('./generateInterviewQuestions');
 const getApplicationHistory = require('./getApplicationHistory');
+const searchLiveJobs = require('./searchLiveJobs');
 
 const toolsList = [
   getCandidateProfile,
@@ -20,7 +21,8 @@ const toolsList = [
   calculateJobMatch,
   saveJobAnalysis,
   generateInterviewQuestions,
-  getApplicationHistory
+  getApplicationHistory,
+  searchLiveJobs
 ];
 
 const toolsByName = new Map();
@@ -88,6 +90,7 @@ async function executeTool(toolName, args = {}) {
 module.exports = {
   toolsList,
   toolsByName,
+  toolRegistry: toolsByName,
   getToolDefinitions,
   executeTool
 };

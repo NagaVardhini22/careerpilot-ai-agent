@@ -12,6 +12,7 @@ async function getCandidateProfile(args = {}) {
   if (candidateId) {
     profileRows = await db.query(
       `SELECT cp.id, cp.user_id, u.name, u.email, cp.headline, cp.summary, 
+              cp.qualification, cp.field_of_study, cp.institution, cp.graduation_year,
               cp.education, cp.experience_years, cp.created_at
        FROM candidate_profiles cp
        JOIN users u ON cp.user_id = u.id
@@ -22,6 +23,7 @@ async function getCandidateProfile(args = {}) {
     // If not specified, get the first active candidate profile
     profileRows = await db.query(
       `SELECT cp.id, cp.user_id, u.name, u.email, cp.headline, cp.summary, 
+              cp.qualification, cp.field_of_study, cp.institution, cp.graduation_year,
               cp.education, cp.experience_years, cp.created_at
        FROM candidate_profiles cp
        JOIN users u ON cp.user_id = u.id
@@ -57,14 +59,18 @@ async function getCandidateProfile(args = {}) {
     email: profile.email,
     headline: profile.headline,
     summary: profile.summary,
-    education: profile.education,
-    experienceYears: parseFloat(profile.experience_years),
+    qualification: profile.qualification || null,
+    fieldOfStudy: profile.field_of_study || null,
+    institution: profile.institution || null,
+    graduationYear: profile.graduation_year || null,
+    education: profile.education || '',
+    experienceYears: profile.experience_years !== null ? parseFloat(profile.experience_years) : null,
     skillsCount: skillsRows.length,
     skills: skillsRows.map(s => ({
       name: s.name,
       category: s.category,
       proficiency: s.proficiency_level,
-      years: parseFloat(s.years_of_experience)
+      years: s.years_of_experience !== null ? parseFloat(s.years_of_experience) : null
     }))
   };
 }

@@ -6,7 +6,7 @@ const agentService = require('../services/agentService');
 
 async function runAgent(req, res, next) {
   try {
-    const { request, userId, candidateId } = req.body;
+    const { request } = req.body;
 
     if (!request || typeof request !== 'string' || !request.trim()) {
       return res.status(400).json({
@@ -15,10 +15,13 @@ async function runAgent(req, res, next) {
       });
     }
 
+    // Strictly derive authenticated user ID from server auth context (anti-IDOR)
+    const userId = req.user.id;
+
     const result = await agentService.runAgent(
       request,
-      userId ? parseInt(userId, 10) : 1,
-      candidateId ? parseInt(candidateId, 10) : null
+      userId,
+      null // candidateId automatically resolved to user's active profile in agentService
     );
 
     return res.json({
@@ -33,7 +36,7 @@ async function runAgent(req, res, next) {
 async function getRuns(req, res, next) {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit, 10) : 20;
-    const runs = await agentService.getAgentRuns(limit);
+    const runs = await agentService.getAgentRuns(req.user.id, limit);
     return res.json({
       success: true,
       count: runs.length,
@@ -47,9 +50,9 @@ async function getRuns(req, res, next) {
 async function getRunById(req, res, next) {
   try {
     const runId = parseInt(req.params.id, 10);
-    const run = await agentService.getAgentRunById(runId);
+    const run = await agentService.getAgentRunById(runId, req.user.id);
     if (!run) {
-      return res.status(404).json({ success: false, error: `Agent run #${runId} not found.` });
+      return res.status(404).json({ success: false, error: `Agent run #${runId} not found or access denied.` });
     }
     return res.json({
       success: true,

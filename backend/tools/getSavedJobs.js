@@ -29,6 +29,11 @@ async function getSavedJobs(args = {}) {
     params.push(keyword, keyword, keyword);
   }
 
+  if (args.userId) {
+    sql += ` AND (j.user_id = ? OR j.user_id IS NULL)`;
+    params.push(args.userId);
+  }
+
   sql += ` ORDER BY j.created_at DESC LIMIT ?`;
   params.push(limit);
 

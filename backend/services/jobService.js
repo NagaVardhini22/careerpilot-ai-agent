@@ -1,6 +1,7 @@
 /**
  * Job Service
  * Handles CRUD operations, filtering, and direct analysis trigger for jobs.
+ * Enforces per-user ownership and isolation.
  */
 
 const db = require('../config/db');
@@ -8,10 +9,10 @@ const calculateJobMatch = require('../tools/calculateJobMatch');
 const saveJobAnalysis = require('../tools/saveJobAnalysis');
 
 /**
- * Retrieve jobs with optional filters
+ * Retrieve jobs with optional filters and user isolation
  */
 async function getJobs(filters = {}) {
-  const { status, keyword } = filters;
+  const { status, keyword, userId = null } = filters;
 
   let sql = `
     SELECT j.id, j.user_id, j.title, j.company, j.location, j.work_mode, j.salary_range,
@@ -22,6 +23,11 @@ async function getJobs(filters = {}) {
     WHERE 1=1
   `;
   const params = [];
+
+  if (userId) {
+    sql += ' AND (j.user_id = ? OR j.user_id IS NULL)';
+    params.push(userId);
+  }
 
   if (status && status !== 'all') {
     sql += ' AND j.status = ?';
@@ -66,10 +72,18 @@ async function getJobs(filters = {}) {
 }
 
 /**
- * Retrieve a single job by ID with analysis history
+ * Retrieve a single job by ID with analysis history and ownership verification
  */
-async function getJobById(jobId) {
-  const rows = await db.query('SELECT * FROM jobs WHERE id = ?', [jobId]);
+async function getJobById(jobId, userId = null) {
+  let sql = 'SELECT * FROM jobs WHERE id = ?';
+  const params = [jobId];
+
+  if (userId) {
+    sql += ' AND (user_id = ? OR user_id IS NULL)';
+    params.push(userId);
+  }
+
+  const rows = await db.query(sql, params);
   if (!rows || rows.length === 0) {
     return null;
   }
@@ -113,11 +127,10 @@ async function getJobById(jobId) {
 }
 
 /**
- * Create a new job record
+ * Create a new job record with server-derived userId
  */
-async function createJob(data) {
+async function createJob(data, authenticatedUserId) {
   const {
-    userId = null,
     title,
     company,
     location = 'Remote',
@@ -145,7 +158,7 @@ async function createJob(data) {
      (user_id, title, company, location, work_mode, salary_range, description, required_skills, experience_required, status)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      userId,
+      authenticatedUserId || null,
       title.trim(),
       company.trim(),
       location.trim(),
@@ -158,22 +171,39 @@ async function createJob(data) {
     ]
   );
 
-  return await getJobById(result.insertId);
+  return await getJobById(result.insertId, authenticatedUserId);
 }
 
 /**
- * Delete a job by ID
+ * Delete a job by ID enforcing strict ownership
  */
-async function deleteJob(jobId) {
-  await db.query('DELETE FROM jobs WHERE id = ?', [jobId]);
-  return { success: true, message: `Job ${jobId} deleted.` };
+async function deleteJob(jobId, authenticatedUserId) {
+  if (!authenticatedUserId) {
+    throw new Error('Authentication required to delete a job.');
+  }
+
+  const result = await db.query('DELETE FROM jobs WHERE id = ? AND user_id = ?', [jobId, authenticatedUserId]);
+  if (result.affectedRows === 0) {
+    throw new Error(`Job #${jobId} not found or you do not have permission to delete it.`);
+  }
+
+  return { success: true, message: `Job #${jobId} deleted successfully.` };
 }
 
 /**
  * Directly analyze a job for a candidate
  */
-async function analyzeJob(jobId, candidateId = null) {
-  const matchResult = await calculateJobMatch.execute({ jobId, candidateId });
+async function analyzeJob(jobId, candidateId = null, authenticatedUserId = null) {
+  // If candidateId not provided, look up profile of authenticated user
+  let targetCandidateId = candidateId;
+  if (!targetCandidateId && authenticatedUserId) {
+    const cpRows = await db.query('SELECT id FROM candidate_profiles WHERE user_id = ? ORDER BY id DESC LIMIT 1', [authenticatedUserId]);
+    if (cpRows.length > 0) {
+      targetCandidateId = cpRows[0].id;
+    }
+  }
+
+  const matchResult = await calculateJobMatch.execute({ jobId, candidateId: targetCandidateId });
   const saveResult = await saveJobAnalysis.execute({
     jobId,
     candidateId: matchResult.candidateId,

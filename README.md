@@ -27,18 +27,18 @@ Key design principles of CareerPilot:
 
 ## Key Features
 
-- **Candidate Profile Management**: Create and maintain candidate background, headline, education, years of experience, and professional summary.
-- **Skills Management**: Select skills from a standardized technical taxonomy and assign proficiency levels (Beginner, Intermediate, Advanced, Expert) with years of experience.
-- **Job Opportunity Tracking**: Add, view, search, and delete job listings with structured metadata (title, company, location, work mode, salary range, and required skills).
-- **Job Compatibility Analysis**: Calculate algorithmic match percentages, detect satisfied requirements, flag critical skill gaps, and generate strategic recommendations.
-- **AI Agent Studio**: An interactive interface where users issue high-level career goals in natural language and observe the agent's multi-step tool execution through an activity timeline.
+- **Authentication & Multi-User Isolation**: Secure registration and login using scrypt password hashing, secure HTTP-only SameSite session cookies, CSRF header protection (`X-Requested-With`), and strict server-enforced ownership checks on all private resources.
+- **Candidate Profile & Skill Builder**: Maintain authentic candidate background, academic degrees (`qualification`, `field_of_study`, `institution`, `graduation_year`), and a flexible Skill Builder (supporting comma-separated paste and row editing) with zero artificial default experience values.
+- **Live External Job Discovery**: Modular multi-provider discovery engine querying official public boards (Greenhouse, Lever) with zero required API keys, graceful degradation for optional providers (Adzuna, Jooble, SerpApi), and verified search links for LinkedIn, Naukri, and Foundit.
+- **Job Opportunity Tracking**: Add, view, search, and delete job listings with structured metadata (title, company, location, work mode, salary range, and required skills), including one-click saving of discovered external jobs.
+- **Job Compatibility Analysis**: Calculate algorithmic match percentages, detect satisfied requirements, flag critical skill gaps with explicit confirmation caveats, and generate strategic recommendations.
+- **AI Agent Studio & 9 Controlled Tools**: An interactive interface where users issue high-level career goals in natural language and observe the agent's multi-step tool execution through an activity timeline backed by 9 controlled backend tools.
 - **Controlled Tool / Function Calling**: Standards-compliant tool calling with JSON Schema validation and server-side argument enforcement.
 - **Interview Question Generation**: Automatically construct targeted technical questions, STAR-method behavioral scenarios, and strategic candidate talking points tailored to the specific intersection of candidate background and role requirements.
 - **Job Analysis Persistence**: Persist evaluation outcomes directly to MySQL (`job_analyses`) for historical tracking.
 - **Agent Audit Logging**: Detailed relational execution logs for each session (`agent_runs`) and granular tool execution records (`agent_tool_calls`).
 - **Clean Onboarding State**: Starts with an empty candidate profile and zero jobs, providing an onboarding flow for new users.
-- **Manual Demo Seeding**: Optional one-click demo data loading (`npm run db:seed` or UI button) for local development and technical interview demonstrations.
-- **Clean State Reset**: One-click reset functionality (`npm run db:reset` or UI button) to return the database to an empty state instantly.
+- **Protected Demo Seeding & Reset**: One-click demo data loading and clean reset controls for local development, automatically disabled in production (`HTTP 403`).
 - **Interactive Dashboard**: Metrics overview displaying total saved jobs, analyzed jobs, average match score, and recent agent runs.
 - **Live Cloud Deployment**: Fully deployed and operational on Railway with managed MySQL and secure HTTPS endpoints.
 
@@ -58,6 +58,7 @@ flowchart TD
     Registry["Tool Registry"]
     Tools["Controlled Tools"]
     Database[("MySQL Database")]
+    Boards["Live Career Boards (Greenhouse, Lever)"]
 
     Browser --> Frontend
     Frontend --> Backend
@@ -66,6 +67,7 @@ flowchart TD
     Agent --> Registry
     Registry --> Tools
     Tools <--> Database
+    Tools <--> Boards
 ```
 
 ### Why the LLM Does Not Directly Access MySQL
@@ -76,13 +78,13 @@ Allowing an LLM to generate and execute raw SQL statements introduces major arch
 - **Hallucinated Queries**: Models frequently generate incorrect column names, non-existent tables, or invalid joins.
 - **Lack of Business Rule Enforcement**: Business logic (such as weighted match score formulas and proficiency scales) must be enforced by application code, not probabilistic model guesses.
 
-CareerPilot solves this by utilizing **controlled backend tools**. The LLM only indicates *which* tool to invoke and supplies structured parameters. The backend validates parameters, executes parameterized queries via `mysql2/promise`, applies business rules, records execution metrics, and passes clean JSON results back to the model context.
+CareerPilot solves this by utilizing **controlled backend tools**. The LLM only indicates *which* tool to invoke and supplies structured parameters. The backend validates parameters, executes parameterized queries via `mysql2/promise` (reducing SQL injection risk through parameterized queries), applies business rules, records execution metrics, and passes clean JSON results back to the model context.
 
 ---
 
 ## Agent Tooling
 
-The agent tool catalog contains **8 controlled tools** defined in `backend/tools/`:
+The agent tool catalog contains **9 controlled tools** defined in `backend/tools/`:
 
 | Tool Name | Implementation File | Description |
 | :--- | :--- | :--- |
@@ -90,10 +92,11 @@ The agent tool catalog contains **8 controlled tools** defined in `backend/tools
 | `getSavedJobs` | `backend/tools/getSavedJobs.js` | Queries saved job opportunities from MySQL with optional keyword and application status filters. |
 | `getJobDetails` | `backend/tools/getJobDetails.js` | Fetches full job specifications, required skills list, and prior analysis history for a specific job ID. |
 | `analyzeJobRequirements` | `backend/tools/analyzeJobRequirements.js` | Parses and deconstructs job descriptions into core required skills, preferred qualifications, and experience level criteria. |
-| `calculateJobMatch` | `backend/tools/calculateJobMatch.js` | Evaluates candidate skills against job requirements, computes percentage match score, and identifies matched skills and missing skill gaps. |
+| `calculateJobMatch` | `backend/tools/calculateJobMatch.js` | Evaluates candidate skills against job requirements, computes percentage match score, and identifies matched skills, missing skill gaps, and recommended learning topics with candidate confirmation caveats. |
 | `saveJobAnalysis` | `backend/tools/saveJobAnalysis.js` | Persists evaluated match score, matched skills, missing skills, recommendations, and interview readiness into the `job_analyses` table. |
 | `generateInterviewQuestions` | `backend/tools/generateInterviewQuestions.js` | Generates role-specific technical questions, STAR-method behavioral questions, and preparation talking points based on candidate profile and job requirements. |
 | `getApplicationHistory` | `backend/tools/getApplicationHistory.js` | Retrieves candidate job application tracking records and previous job compatibility evaluations. |
+| `searchLiveJobs` | `backend/tools/searchLiveJobs.js` | Searches active external job postings across integrated company career boards (Greenhouse, Lever) and generates verified deep search links for LinkedIn, Naukri, and Foundit. |
 
 ---
 
@@ -101,15 +104,15 @@ The agent tool catalog contains **8 controlled tools** defined in `backend/tools
 
 When a user submits a prompt in the AI Agent Studio, the backend executes the following multi-step loop:
 
-1. **User Request Submission**: The candidate sends a natural-language goal (e.g., *"Which of my saved jobs is the best match for my skills? Prepare interview questions for the best matching job."*).
+1. **User Request Submission**: The candidate sends a natural-language goal (e.g., *"Which of my saved jobs is the best match for my skills? Prepare interview questions for the best matching job."* or *"Find current entry-level Python developer jobs in India"*).
 2. **Run Initialization**: The backend creates an `agent_runs` record in MySQL with `status = 'running'` and initializes conversation context with the system prompt and user request.
-3. **Tool Schema Exposure**: All 8 tool definitions (formatted as standard OpenAI function calling JSON schemas) are provided to the LLM/planner.
+3. **Tool Schema Exposure**: All 9 tool definitions (formatted as standard OpenAI function calling JSON schemas) are provided to the LLM/planner.
 4. **Model Decision**: The model evaluates conversational context and determines whether it has sufficient information to respond or needs to execute tools.
 5. **Tool Validation & Argument Parsing**: When the model requests a tool call, the orchestrator validates that the tool exists in the registry and safely parses arguments.
 6. **Tool Execution**: The selected tool module executes with parameterized database queries and business logic.
 7. **Execution Audit Logging**: The tool execution is logged in `agent_tool_calls` with tool name, arguments JSON, result payload JSON, status (`success` or `failed`), and duration in milliseconds.
 8. **Context Feedback**: The tool output is serialized as a tool response message and appended to the conversation history.
-9. **Iterative Continuation**: The agent evaluates accumulated results and can invoke additional tools in sequence (e.g., fetching profile → fetching jobs → calculating match → generating interview questions → saving analysis).
+9. **Iterative Continuation**: The agent evaluates accumulated results and can invoke additional tools in sequence (e.g., searching live jobs → evaluating match → generating interview questions → saving analysis).
 10. **Final Synthesis & Persistence**: Once no further tools are required, the model synthesizes a cohesive, data-backed Markdown answer. The `agent_runs` record is updated with `status = 'completed'`, iteration count, and total duration.
 11. **Client Rendering**: The client receives the final Markdown synthesis alongside a step-by-step activity timeline.
 
