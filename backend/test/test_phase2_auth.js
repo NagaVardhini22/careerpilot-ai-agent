@@ -337,6 +337,46 @@ async function runPhase2Tests() {
     });
     assert('Registration rejects missing email', missingFieldRes.status === 400, `status: ${missingFieldRes.status}`);
 
+    // REGRESSION TEST: Registration name validation
+    // 1. Missing name in request body
+    const missingNameRes = await makeRequest(server, { method: 'POST', path: '/api/auth/register' }, {
+      email: 'noname@example.com',
+      password: 'StrongPassword123!'
+    });
+    assert('Registration rejects missing name with 400', missingNameRes.status === 400 && missingNameRes.data.error.includes('Name is required'), missingNameRes.data.error);
+
+    // 2. Empty string name
+    const emptyNameRes = await makeRequest(server, { method: 'POST', path: '/api/auth/register' }, {
+      name: '',
+      email: 'emptyname@example.com',
+      password: 'StrongPassword123!'
+    });
+    assert('Registration rejects empty string name with 400', emptyNameRes.status === 400 && emptyNameRes.data.error.includes('Name is required'), emptyNameRes.data.error);
+
+    // 3. Whitespace-only name
+    const whitespaceNameRes = await makeRequest(server, { method: 'POST', path: '/api/auth/register' }, {
+      name: '    ',
+      email: 'whitespacename@example.com',
+      password: 'StrongPassword123!'
+    });
+    assert('Registration rejects whitespace-only name with 400', whitespaceNameRes.status === 400 && whitespaceNameRes.data.error.includes('Name is required'), whitespaceNameRes.data.error);
+
+    // 4. Populated name with leading/trailing whitespace is accepted and trimmed
+    const trimmedNameRes = await makeRequest(server, { method: 'POST', path: '/api/auth/register' }, {
+      name: '   Padded Candidate   ',
+      email: 'padded.candidate@example.com',
+      password: 'StrongPassword123!'
+    });
+    assert('Registration accepts padded name and trims whitespace', trimmedNameRes.status === 201 && trimmedNameRes.data.user.name === 'Padded Candidate', JSON.stringify(trimmedNameRes.data));
+
+    // 5. Registration supports fullName fallback
+    const fullNameRes = await makeRequest(server, { method: 'POST', path: '/api/auth/register' }, {
+      fullName: 'Fullname Candidate',
+      email: 'fullname.candidate@example.com',
+      password: 'StrongPassword123!'
+    });
+    assert('Registration accepts fullName field fallback', fullNameRes.status === 201 && fullNameRes.data.user.name === 'Fullname Candidate', JSON.stringify(fullNameRes.data));
+
     // Legacy quarantine protection: attempting to register matching legacy unverified profile
     const legacyClaimRes = await makeRequest(server, { method: 'POST', path: '/api/auth/register' }, {
       name: 'Imposter or Claimer',
@@ -634,6 +674,20 @@ async function runPhase2Tests() {
       headers: { Authorization: `Bearer ${user2Token}` }
     });
     assert('User 2 dashboard stats count zero runs', u2Stats.data.stats.totalAgentRuns === 0, JSON.stringify(u2Stats.data.stats));
+
+    // Anti-IDOR & Isolation in Agent Tools:
+    const { executeTool } = require('../tools');
+    const u1ToolRes = await executeTool('getCandidateProfile', { userId: user1RegRes.data.user.id });
+    assert('User 1 tool getCandidateProfile returns User 1 profile', u1ToolRes.success === true && u1ToolRes.result.userId === user1RegRes.data.user.id && u1ToolRes.result.name === 'Alice User1', JSON.stringify(u1ToolRes.result));
+
+    // Register a 3rd user without a profile to verify tool isolation
+    const u3RegRes = await makeRequest(server, { method: 'POST', path: '/api/auth/register' }, {
+      name: 'Charlie Blank',
+      email: 'charlie.blank@example.com',
+      password: 'StrongPasswordUser3!'
+    });
+    const u3ToolRes = await executeTool('getCandidateProfile', { userId: u3RegRes.data.user.id });
+    assert('User 3 (without profile) tool getCandidateProfile returns exists: false', u3ToolRes.success === true && u3ToolRes.result.exists === false, JSON.stringify(u3ToolRes.result));
 
     // ------------------------------------------------------------------------
     // 9. PRODUCTION LOCKDOWN OF DEMO ENDPOINTS (403)

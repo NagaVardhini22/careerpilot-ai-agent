@@ -11,17 +11,36 @@ async function calculateJobMatch(args = {}) {
 
   // Resolve candidateId if omitted
   if (!candidateId) {
-    const defaultProfile = await db.query('SELECT id FROM candidate_profiles ORDER BY id ASC LIMIT 1');
-    if (defaultProfile.length > 0) {
-      candidateId = defaultProfile[0].id;
+    if (args.userId) {
+      const userProfile = await db.query(
+        'SELECT id FROM candidate_profiles WHERE user_id = ? AND (is_legacy = FALSE OR is_legacy IS NULL) ORDER BY id DESC LIMIT 1',
+        [args.userId]
+      );
+      if (userProfile.length > 0) {
+        candidateId = userProfile[0].id;
+      } else {
+        throw new Error('No candidate profile exists for this user to calculate match against. Please create a profile first.');
+      }
     } else {
-      throw new Error('No candidate profile exists to calculate match against. Please create a profile first.');
+      const defaultProfile = await db.query('SELECT id FROM candidate_profiles WHERE (is_legacy = FALSE OR is_legacy IS NULL) ORDER BY id ASC LIMIT 1');
+      if (defaultProfile.length > 0) {
+        candidateId = defaultProfile[0].id;
+      } else {
+        throw new Error('No candidate profile exists to calculate match against. Please create a profile first.');
+      }
     }
   }
 
   // Resolve jobId if omitted (e.g. choose first saved job)
   if (!jobId) {
-    const defaultJob = await db.query('SELECT id FROM jobs WHERE status = "saved" ORDER BY id ASC LIMIT 1');
+    let jobSql = 'SELECT id FROM jobs WHERE status = "saved"';
+    const jobParams = [];
+    if (args.userId) {
+      jobSql += ' AND (user_id = ? OR user_id IS NULL)';
+      jobParams.push(args.userId);
+    }
+    jobSql += ' ORDER BY id DESC LIMIT 1';
+    const defaultJob = await db.query(jobSql, jobParams);
     if (defaultJob.length > 0) {
       jobId = defaultJob[0].id;
     } else {

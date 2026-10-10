@@ -279,6 +279,18 @@ async function runAllTests() {
     }
     assert('Production JWT_SECRET guard rejects secret < 32 characters in production', prodGuardTriggered === true);
 
+    // Regression check: Registration rejects empty name
+    const regEmptyName = await makeRequest(appServer, {
+      method: 'POST',
+      path: '/api/auth/register',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    }, {
+      name: '   ',
+      email: 'emptyname.suite@example.com',
+      password: 'SomePassword123!'
+    });
+    assert('Registration rejects whitespace name with 400', regEmptyName.status === 400 && regEmptyName.data.error.includes('Name is required'));
+
     // 3. User Registration (User A)
     const regUserA = await makeRequest(appServer, {
       method: 'POST',
@@ -581,6 +593,14 @@ async function runAllTests() {
       headers: { 'Cookie': userBCookie }
     });
     assert('User B history has 0 runs', userBHistory.data.runs.length === 0);
+
+    // Multi-user tool isolation tests
+    const getCandidateProfileTool = tools.toolRegistry.get('getCandidateProfile');
+    const userAProfileToolRes = await getCandidateProfileTool.execute({ userId: regUserA.data.user.id });
+    assert('User A getCandidateProfile tool returns User A profile', userAProfileToolRes.exists === true && userAProfileToolRes.userId === regUserA.data.user.id);
+
+    const userBProfileToolRes = await getCandidateProfileTool.execute({ userId: regUserB.data.user.id });
+    assert('User B (without profile) getCandidateProfile tool returns exists: false (no cross-user leak)', userBProfileToolRes.exists === false);
 
   } catch (err) {
     console.error('\n❌ Unexpected error during test suite execution:', err);

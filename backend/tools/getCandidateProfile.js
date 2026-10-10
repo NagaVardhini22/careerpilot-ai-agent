@@ -7,26 +7,42 @@ const db = require('../config/db');
 
 async function getCandidateProfile(args = {}) {
   let candidateId = args.candidateId;
+  const userId = args.userId;
 
   let profileRows;
   if (candidateId) {
+    const params = [candidateId];
+    let sql = `SELECT cp.id, cp.user_id, u.name, u.email, cp.headline, cp.summary,
+              cp.qualification, cp.field_of_study, cp.institution, cp.graduation_year,
+              cp.education, cp.experience_years, cp.created_at
+       FROM candidate_profiles cp
+       JOIN users u ON cp.user_id = u.id
+       WHERE cp.id = ?`;
+    if (userId) {
+      sql += ' AND cp.user_id = ?';
+      params.push(userId);
+    }
+    profileRows = await db.query(sql, params);
+  } else if (userId) {
     profileRows = await db.query(
       `SELECT cp.id, cp.user_id, u.name, u.email, cp.headline, cp.summary, 
               cp.qualification, cp.field_of_study, cp.institution, cp.graduation_year,
               cp.education, cp.experience_years, cp.created_at
        FROM candidate_profiles cp
        JOIN users u ON cp.user_id = u.id
-       WHERE cp.id = ?`,
-      [candidateId]
+       WHERE cp.user_id = ? AND (cp.is_legacy = FALSE OR cp.is_legacy IS NULL)
+       ORDER BY cp.id DESC LIMIT 1`,
+      [userId]
     );
   } else {
-    // If not specified, get the first active candidate profile
+    // If not specified and no userId provided, get the first active non-legacy profile
     profileRows = await db.query(
       `SELECT cp.id, cp.user_id, u.name, u.email, cp.headline, cp.summary, 
               cp.qualification, cp.field_of_study, cp.institution, cp.graduation_year,
               cp.education, cp.experience_years, cp.created_at
        FROM candidate_profiles cp
        JOIN users u ON cp.user_id = u.id
+       WHERE (cp.is_legacy = FALSE OR cp.is_legacy IS NULL)
        ORDER BY cp.id ASC LIMIT 1`
     );
   }

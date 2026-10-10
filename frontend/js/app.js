@@ -77,6 +77,55 @@ const App = {
       });
     }
 
+    // Clear validation errors dynamically as the user types
+    const registerNameInput = document.getElementById('register-name');
+    if (registerNameInput) {
+      registerNameInput.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        if (val.length > 0) {
+          const alertBox = document.getElementById('auth-error-alert');
+          if (alertBox && alertBox.textContent.includes('Name is required')) {
+            UI.clearAuthError();
+          }
+        }
+      });
+    }
+
+    const registerEmailInput = document.getElementById('register-email');
+    if (registerEmailInput) {
+      registerEmailInput.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        if (val.includes('@')) {
+          const alertBox = document.getElementById('auth-error-alert');
+          if (alertBox && alertBox.textContent.includes('email')) {
+            UI.clearAuthError();
+          }
+        }
+      });
+    }
+
+    const registerPasswordInput = document.getElementById('register-password');
+    if (registerPasswordInput) {
+      registerPasswordInput.addEventListener('input', (e) => {
+        const val = e.target.value;
+        if (val.length >= 8) {
+          const alertBox = document.getElementById('auth-error-alert');
+          if (alertBox && alertBox.textContent.includes('Password')) {
+            UI.clearAuthError();
+          }
+        }
+      });
+    }
+
+    const loginEmailInput = document.getElementById('login-email');
+    const loginPasswordInput = document.getElementById('login-password');
+    if (loginEmailInput) {
+      loginEmailInput.addEventListener('input', () => UI.clearAuthError());
+    }
+    if (loginPasswordInput) {
+      loginPasswordInput.addEventListener('input', () => UI.clearAuthError());
+    }
+
     const logoutBtn = document.getElementById('btn-logout');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => this.handleLogout());
@@ -189,6 +238,17 @@ const App = {
       }
       UI.updateAuthUI(currentUser);
 
+      if (!currentUser) {
+        // Guest mode: clean empty states without throwing 401 errors
+        UI.updateHeaderProfile(null);
+        UI.renderProfileView(null);
+        UI.renderDashboard({ totalSavedJobs: 0, totalAnalyzedJobs: 0, averageMatchScore: 0, totalAgentRuns: 0, hasProfile: false }, []);
+        UI.renderJobs([]);
+        UI.renderAnalyses([]);
+        UI.renderAgentHistory([]);
+        return;
+      }
+
       // 3. Load active candidate profile
       try {
         const profileRes = await API.getProfile();
@@ -229,6 +289,7 @@ const App = {
   },
 
   async refreshSilent() {
+    if (!UI.state.currentUser) return;
     try {
       const statsRes = await API.getStats();
       UI.renderDashboard(statsRes.stats, statsRes.stats.recentRuns);
@@ -247,14 +308,29 @@ const App = {
   },
 
   async handleLogin() {
-    const email = document.getElementById('login-email').value.trim();
-    const password = document.getElementById('login-password').value;
+    const emailInput = document.getElementById('login-email');
+    const passwordInput = document.getElementById('login-password');
+    const email = emailInput ? emailInput.value.trim() : '';
+    const password = passwordInput ? passwordInput.value : '';
+
+    if (!email) {
+      UI.setAuthError('Email address is required.');
+      if (emailInput) emailInput.focus();
+      return;
+    }
+    if (!password) {
+      UI.setAuthError('Password is required.');
+      if (passwordInput) passwordInput.focus();
+      return;
+    }
+
     try {
       UI.clearAuthError();
-      const res = await API.login(email, password);
+      const res = await API.login({ email, password });
       UI.showToast(`Welcome back, ${res.user.name}!`, 'success');
       UI.closeAuthModal();
-      document.getElementById('form-login').reset();
+      const loginForm = document.getElementById('form-login');
+      if (loginForm) loginForm.reset();
       await this.refreshApp();
     } catch (err) {
       UI.setAuthError(err.message);
@@ -262,15 +338,40 @@ const App = {
   },
 
   async handleRegister() {
-    const name = document.getElementById('register-name').value.trim();
-    const email = document.getElementById('reg-email') ? document.getElementById('reg-email').value.trim() : document.getElementById('register-email').value.trim();
-    const password = document.getElementById('register-password').value;
+    const nameInput = document.getElementById('register-name');
+    const emailInput = document.getElementById('register-email') || document.getElementById('reg-email');
+    const passwordInput = document.getElementById('register-password');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const email = emailInput ? emailInput.value.trim() : '';
+    const password = passwordInput ? passwordInput.value : '';
+
+    // Client-side validation: only show error if genuinely empty after trim
+    if (!name) {
+      UI.setAuthError('Name is required.');
+      if (nameInput) nameInput.focus();
+      return;
+    }
+
+    if (!email || !email.includes('@')) {
+      UI.setAuthError('A valid email address is required.');
+      if (emailInput) emailInput.focus();
+      return;
+    }
+
+    if (!password || password.length < 8) {
+      UI.setAuthError('Password must be at least 8 characters long.');
+      if (passwordInput) passwordInput.focus();
+      return;
+    }
+
     try {
       UI.clearAuthError();
-      const res = await API.register(name, email, password);
+      const res = await API.register({ name, email, password });
       UI.showToast(`Account created for ${res.user.name}!`, 'success');
       UI.closeAuthModal();
-      document.getElementById('form-register').reset();
+      const regForm = document.getElementById('form-register');
+      if (regForm) regForm.reset();
       await this.refreshApp();
       UI.switchTab('profile');
     } catch (err) {

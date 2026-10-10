@@ -9,9 +9,19 @@ async function getApplicationHistory(args = {}) {
   let candidateId = args.candidateId;
 
   if (!candidateId) {
-    const defaultProfile = await db.query('SELECT id FROM candidate_profiles ORDER BY id ASC LIMIT 1');
-    if (defaultProfile.length > 0) {
-      candidateId = defaultProfile[0].id;
+    if (args.userId) {
+      const userProfile = await db.query(
+        'SELECT id FROM candidate_profiles WHERE user_id = ? AND (is_legacy = FALSE OR is_legacy IS NULL) ORDER BY id DESC LIMIT 1',
+        [args.userId]
+      );
+      if (userProfile.length > 0) {
+        candidateId = userProfile[0].id;
+      }
+    } else {
+      const defaultProfile = await db.query('SELECT id FROM candidate_profiles WHERE (is_legacy = FALSE OR is_legacy IS NULL) ORDER BY id ASC LIMIT 1');
+      if (defaultProfile.length > 0) {
+        candidateId = defaultProfile[0].id;
+      }
     }
   }
 

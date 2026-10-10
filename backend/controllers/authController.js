@@ -23,7 +23,10 @@ function setAuthCookie(res, token) {
 
 async function register(req, res, next) {
   try {
-    const { name, email, password } = req.body;
+    const rawName = req.body && (req.body.name !== undefined ? req.body.name : (req.body.fullName || req.body.username));
+    const email = req.body && req.body.email;
+    const password = req.body && req.body.password;
+    const name = typeof rawName === 'string' ? rawName.trim() : rawName;
     const { user, token } = await authService.registerUser({ name, email, password });
 
     setAuthCookie(res, token);

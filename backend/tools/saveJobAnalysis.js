@@ -6,9 +6,9 @@
 const db = require('../config/db');
 
 async function saveJobAnalysis(args = {}) {
-  const {
+  let {
     jobId,
-    candidateId = 1,
+    candidateId,
     matchScore,
     matchedSkills = [],
     missingSkills = [],
@@ -16,6 +16,19 @@ async function saveJobAnalysis(args = {}) {
     recommendations = [],
     interviewReadiness = 'Moderate'
   } = args;
+
+  if (!candidateId && args.userId) {
+    const cp = await db.query(
+      'SELECT id FROM candidate_profiles WHERE user_id = ? AND (is_legacy = FALSE OR is_legacy IS NULL) ORDER BY id DESC LIMIT 1',
+      [args.userId]
+    );
+    if (cp && cp.length > 0) {
+      candidateId = cp[0].id;
+    }
+  }
+  if (!candidateId) {
+    candidateId = 1;
+  }
 
   if (!jobId || matchScore === undefined) {
     throw new Error('jobId and matchScore are required to save a job analysis.');

@@ -38,17 +38,45 @@ const API = {
   },
 
   // Authentication
-  register({ name, email, password }) {
+  register(nameOrObj, email, password) {
+    let payload;
+    if (typeof nameOrObj === 'object' && nameOrObj !== null) {
+      payload = {
+        name: nameOrObj.name || nameOrObj.fullName || nameOrObj.username,
+        email: nameOrObj.email,
+        password: nameOrObj.password
+      };
+    } else {
+      payload = {
+        name: nameOrObj,
+        email: email,
+        password: password
+      };
+    }
+
     return this.request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ name, email, password })
+      body: JSON.stringify(payload)
     });
   },
 
-  login({ email, password }) {
+  login(emailOrObj, password) {
+    let payload;
+    if (typeof emailOrObj === 'object' && emailOrObj !== null) {
+      payload = {
+        email: emailOrObj.email,
+        password: emailOrObj.password
+      };
+    } else {
+      payload = {
+        email: emailOrObj,
+        password: password
+      };
+    }
+
     return this.request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify(payload)
     });
   },
 
